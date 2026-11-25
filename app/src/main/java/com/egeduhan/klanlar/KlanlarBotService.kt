@@ -24,6 +24,7 @@ class KlanlarBotService : AccessibilityService() {
 
     private lateinit var windowManager: WindowManager
     private lateinit var overlayView: View
+    private lateinit var overlayParams: WindowManager.LayoutParams
     private var targetPickerView: View? = null
     private val handler = Handler(Looper.getMainLooper())
     private var aktifMi = false
@@ -35,15 +36,25 @@ class KlanlarBotService : AccessibilityService() {
         arayuzuKur()
     }
 
+    private fun klavyeOdagiAc(acik: Boolean) {
+        overlayParams.flags = if (acik) {
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        } else {
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        }
+        windowManager.updateViewLayout(overlayView, overlayParams)
+    }
+
     private fun arayuzuKur() {
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         overlayView = LayoutInflater.from(this).inflate(R.layout.overlay_panel, null)
 
-        val params = WindowManager.LayoutParams(
+        // Varsayılan olarak FLAG_NOT_FOCUSABLE aktif: arka plandaki oyuna yazı yazmayı engellemez
+        overlayParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
@@ -63,54 +74,69 @@ class KlanlarBotService : AccessibilityService() {
         val btnBaslat = overlayView.findViewById<Button>(R.id.btnBaslatDurdur)
         val tvDurum = overlayView.findViewById<TextView>(R.id.tvDurum)
 
-        // Panel sürükleme
+        // Panel içindeki yazı kutularına dokunulduğunda klavye odağını aç
+        val editIds = listOf(R.id.etAskerDakika, R.id.etYagmaSayi, R.id.etYagmaDakika, R.id.etBinaSirasi)
+        editIds.forEach { id ->
+            overlayView.findViewById<EditText>(id).setOnTouchListener { v, _ ->
+                klavyeOdagiAc(true)
+                v.requestFocus()
+                false
+            }
+        }
+
+        // Panel sürükleme (dokunulduğunda arka plan odağını geri verir)
         var initialX = 0
         var initialY = 0
         var initialTouchX = 0f
         var initialTouchY = 0f
 
-        val dragListener = View.OnTouchListener { _, event ->
+        dragHeader.setOnTouchListener { _, event ->
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
-                    initialX = params.x
-                    initialY = params.y
+                    klavyeOdagiAc(false)
+                    initialX = overlayParams.x
+                    initialY = overlayParams.y
                     initialTouchX = event.rawX
                     initialTouchY = event.rawY
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    params.x = initialX + (event.rawX - initialTouchX).toInt()
-                    params.y = initialY + (event.rawY - initialTouchY).toInt()
-                    windowManager.updateViewLayout(overlayView, params)
+                    overlayParams.x = initialX + (event.rawX - initialTouchX).toInt()
+                    overlayParams.y = initialY + (event.rawY - initialTouchY).toInt()
+                    windowManager.updateViewLayout(overlayView, overlayParams)
                     true
                 }
                 else -> false
             }
         }
-        dragHeader.setOnTouchListener(dragListener)
 
         // Küçült / Büyüt
         btnMinimize.setOnClickListener {
+            klavyeOdagiAc(false)
             mainPanel.visibility = View.GONE
             btnFloatingIcon.visibility = View.VISIBLE
         }
         btnFloatingIcon.setOnClickListener {
+            klavyeOdagiAc(false)
             btnFloatingIcon.visibility = View.GONE
             mainPanel.visibility = View.VISIBLE
         }
 
         // Sekmeler
         overlayView.findViewById<Button>(R.id.tabAsker).setOnClickListener {
+            klavyeOdagiAc(false)
             layoutAsker.visibility = View.VISIBLE
             layoutYagma.visibility = View.GONE
             layoutBina.visibility = View.GONE
         }
         overlayView.findViewById<Button>(R.id.tabYagma).setOnClickListener {
+            klavyeOdagiAc(false)
             layoutAsker.visibility = View.GONE
             layoutYagma.visibility = View.VISIBLE
             layoutBina.visibility = View.GONE
         }
         overlayView.findViewById<Button>(R.id.tabBina).setOnClickListener {
+            klavyeOdagiAc(false)
             layoutAsker.visibility = View.GONE
             layoutYagma.visibility = View.GONE
             layoutBina.visibility = View.VISIBLE
@@ -138,6 +164,7 @@ class KlanlarBotService : AccessibilityService() {
 
         // Başlat / Durdur
         btnBaslat.setOnClickListener {
+            klavyeOdagiAc(false)
             aktifMi = !aktifMi
             if (aktifMi) {
                 btnBaslat.text = "SİSTEMİ DURDUR"
@@ -152,12 +179,12 @@ class KlanlarBotService : AccessibilityService() {
             }
         }
 
-        windowManager.addView(overlayView, params)
+        windowManager.addView(overlayView, overlayParams)
     }
 
-    // Ekrana yarı saydam katman açıp kullanıcının dokunduğu (X, Y) noktasını kaydeder
     private fun noktaSec(anahtar: String, mesaj: String, tvDurum: TextView) {
         if (targetPickerView != null) return
+        klavyeOdagiAc(false)
 
         val picker = TextView(this).apply {
             text = "🎯 $mesaj"
@@ -206,7 +233,6 @@ class KlanlarBotService : AccessibilityService() {
         val yagmaAktif = overlayView.findViewById<CheckBox>(R.id.cbYagmaAktif).isChecked
         val binaAktif = overlayView.findViewById<CheckBox>(R.id.cbBinaAktif).isChecked
 
-        // 1. ASKER DÖNGÜSÜ (Varsayılan 7 dk)
         if (askerAktif) {
             val askerDk = overlayView.findViewById<EditText>(R.id.etAskerDakika).text.toString().toLongOrNull() ?: 7L
             val askerPeriyot = (askerDk.coerceAtLeast(1L)) * 60_000L
@@ -225,7 +251,6 @@ class KlanlarBotService : AccessibilityService() {
             handler.postDelayed(askerGorevi, 1500L)
         }
 
-        // 2. YAĞMA ASİSTANI DÖNGÜSÜ
         if (yagmaAktif) {
             val koySayisi = overlayView.findViewById<EditText>(R.id.etYagmaSayi).text.toString().toIntOrNull() ?: 10
             val yagmaDk = overlayView.findViewById<EditText>(R.id.etYagmaDakika).text.toString().toLongOrNull() ?: 5L
@@ -251,7 +276,6 @@ class KlanlarBotService : AccessibilityService() {
             handler.postDelayed(yagmaGorevi, 3500L)
         }
 
-        // 3. BİNA SIRASI DÖNGÜSÜ (Her 25 saniyede bir sıraya göre dener)
         if (binaAktif) {
             val binaGorevi = object : Runnable {
                 override fun run() {
