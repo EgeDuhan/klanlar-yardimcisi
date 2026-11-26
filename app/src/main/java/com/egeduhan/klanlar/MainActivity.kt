@@ -53,6 +53,8 @@ class MainActivity : Activity() {
     private var sonBinaZamani = 0L
     private var sonTemizlikZamani = 0L
     private var sonBorsaZamani = 0L
+    private var sonBorsaAjaxZamani = 0L
+    private var borsaHizSiniriBitisZamani = 0L
 
     // Başkası kaptığında o kaynağı 2.2 sn atlamak için
     private var sonDeneneKaynak = ""
@@ -286,8 +288,8 @@ class MainActivity : Activity() {
 
         val etBorsaSaniye = findViewById<EditText>(R.id.etBorsaSaniye)
         etBorsaSaniye.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-        if (etBorsaSaniye.text.toString() == "3") {
-            etBorsaSaniye.setText("0.3")
+        if (etBorsaSaniye.text.toString() == "3" || etBorsaSaniye.text.toString() == "0.3") {
+            etBorsaSaniye.setText("0.5")
         }
 
         val btnBorsaMod = findViewById<Button>(R.id.btnBorsaMod)
@@ -302,13 +304,15 @@ class MainActivity : Activity() {
             if (aktifMi) {
                 btnBaslat.text = "SİSTEMİ DURDUR"
                 btnBaslat.setBackgroundColor(Color.parseColor("#A83228"))
-                durumGuncelle("Otomasyon başlatıldı (Yüksek hız aktif)")
+                durumGuncelle("Otomasyon başlatıldı (Rate-Limit koruması aktif)")
                 arkaPlanServisiniBaslat()
                 sonAskerZamani = 0L
                 sonYagmaZamani = 0L
                 sonBinaZamani = 0L
                 sonTemizlikZamani = 0L
                 sonBorsaZamani = 0L
+                sonBorsaAjaxZamani = 0L
+                borsaHizSiniriBitisZamani = 0L
                 basarisizKaynak = ""
                 turDevamEdiyor = false
                 borsaIslemde = false
@@ -603,19 +607,28 @@ class MainActivity : Activity() {
                 val simdi = System.currentTimeMillis()
                 val borsaAktif = findViewById<CheckBox>(R.id.cbBorsaAktif).isChecked
 
-                // Kilitlenme koruması: borsa işlemi süresini aştıysa sıfırla
-                if (borsaIslemde && (simdi - borsaIslemBaslangic > 1400L)) {
+                // Kilitlenme koruması
+                if (borsaIslemde && (simdi - borsaIslemBaslangic > 1600L)) {
                     borsaIslemde = false
                     borsaKutulariniTemizle()
                 }
 
-                // 1) BORSA YÜKSEK HIZ DÖNGÜSÜ (250 ms+)
+                // 1) BORSA HİBRİT DÖNGÜSÜ (DOM anlık + AJAX 3.5 sn'de bir)
                 if (borsaAktif && !turDevamEdiyor && !borsaIslemde) {
-                    val borsaSnText = findViewById<EditText>(R.id.etBorsaSaniye).text.toString().replace(",", ".")
-                    val borsaSureMs = ((borsaSnText.toDoubleOrNull() ?: 0.3) * 1000.0).toLong().coerceAtLeast(250L)
-                    if (simdi - sonBorsaZamani >= borsaSureMs) {
-                        sonBorsaZamani = simdi
-                        borsaUltraHizliKontrolEt()
+                    if (simdi < borsaHizSiniriBitisZamani) {
+                        val kalanSn = ((borsaHizSiniriBitisZamani - simdi) / 1000L) + 1
+                        durumGuncelle("[Borsa] ⏳ Sunucu yoğunluk molası (${kalanSn}s)...")
+                    } else {
+                        val borsaSnText = findViewById<EditText>(R.id.etBorsaSaniye).text.toString().replace(",", ".")
+                        val borsaSureMs = ((borsaSnText.toDoubleOrNull() ?: 0.5) * 1000.0).toLong().coerceAtLeast(350L)
+                        if (simdi - sonBorsaZamani >= borsaSureMs) {
+                            sonBorsaZamani = simdi
+                            val ajaxIzni = (simdi - sonBorsaAjaxZamani) >= (3200L..4100L).random()
+                            if (ajaxIzni) {
+                                sonBorsaAjaxZamani = simdi
+                            }
+                            borsaHibritKontrolEt(ajaxIzni)
+                        }
                     }
                 }
 
@@ -655,7 +668,7 @@ class MainActivity : Activity() {
                         }
                     }
                 }
-                handler.postDelayed(this, 120L)
+                handler.postDelayed(this, 150L)
             }
         }
         handler.postDelayed(dongu, 150L)
@@ -1104,8 +1117,8 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- 5. ULTRA HIZLI (0ms JS TETİKLEMELİ) BORSA ---
-    private fun borsaUltraHizliKontrolEt() {
+    // --- 5. HİBRİT (SIFIR RATE-LİMİT RİSKLİ) BORSA ---
+    private fun borsaHibritKontrolEt(ajaxYenile: Boolean) {
         val mevcutUrl = webView.url ?: return
         if (!mevcutUrl.contains("game.php")) {
             durumGuncelle("⚠️ Önce dünyaya giriş yap!")
@@ -1145,7 +1158,17 @@ class MainActivity : Activity() {
 
         val js = """
             (function() {
-                document.querySelectorAll('.error_box, #error').forEach(function(e) { e.remove(); });
+                // Sunucu yoğunluk uyarısı ekranda mı kontrol et
+                var mevcutHata = document.querySelector('.error_box, #error');
+                if (mevcutHata && mevcutHata.offsetParent !== null) {
+                    var hTxt = (mevcutHata.innerText || '').toLowerCase();
+                    if (hTxt.indexOf('yoğun') !== -1 || hTxt.indexOf('tekrar deneyin') !== -1 || hTxt.indexOf('many') !== -1) {
+                        mevcutHata.remove();
+                        AndroidBot.onBorsaHizSiniri();
+                        return;
+                    }
+                    mevcutHata.remove();
+                }
 
                 function ilkSayi(el) {
                     if (!el) return 0;
@@ -1153,24 +1176,22 @@ class MainActivity : Activity() {
                     return m ? (parseInt(m[1].replace(/\./g, ''), 10) || 0) : 0;
                 }
 
-                function sonSayi(el) {
-                    if (!el) return 0;
-                    var matches = (el.textContent || el.innerText || '').trim().match(/(\d[\d.]*)/g);
-                    if (!matches || matches.length === 0) return 0;
-                    return parseInt(matches[matches.length - 1].replace(/\./g, ''), 10) || 0;
-                }
-
-                function tablodanOku() {
+                function canlıVeriOku() {
                     var res = {
                         stock: {wood: 0, stone: 0, iron: 0},
                         capacity: {wood: 0, stone: 0, iron: 0},
                         rates: {wood: 0, stone: 0, iron: 0}
                     };
+                    var live = (window.PremiumExchange && PremiumExchange.data) ? PremiumExchange.data : {};
                     var sirasi = ['wood', 'stone', 'iron'];
                     sirasi.forEach(function(r) {
-                        res.stock[r] = ilkSayi(document.getElementById('premium_exchange_stock_' + r));
-                        res.capacity[r] = ilkSayi(document.getElementById('premium_exchange_capacity_' + r));
-                        res.rates[r] = sonSayi(document.getElementById('premium_exchange_rate_' + r));
+                        var domStok = ilkSayi(document.getElementById('premium_exchange_stock_' + r));
+                        var domKap = ilkSayi(document.getElementById('premium_exchange_capacity_' + r));
+                        var domKur = ilkSayi(document.getElementById('premium_exchange_rate_' + r));
+
+                        res.stock[r] = (live.stock && live.stock[r] !== undefined) ? parseInt(live.stock[r], 10) : domStok;
+                        res.capacity[r] = (live.capacity && live.capacity[r] !== undefined) ? parseInt(live.capacity[r], 10) : domKap;
+                        res.rates[r] = (live.rates && live.rates[r] !== undefined) ? Math.floor(parseFloat(live.rates[r])) : domKur;
                     });
                     return res;
                 }
@@ -1188,7 +1209,12 @@ class MainActivity : Activity() {
                         var hata = document.querySelector('.error_box, #error');
                         if (gorunurMu(hata)) {
                             if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-                            AndroidBot.onBorsaSonuc(false);
+                            var msg = (hata.innerText || '').toLowerCase();
+                            if (msg.indexOf('yoğun') !== -1 || msg.indexOf('tekrar deneyin') !== -1) {
+                                AndroidBot.onBorsaHizSiniri();
+                            } else {
+                                AndroidBot.onBorsaSonuc(false);
+                            }
                             return true;
                         }
 
@@ -1260,7 +1286,7 @@ class MainActivity : Activity() {
                     }
 
                     if (!secilen) {
-                        var ozet = 'Stok: ' + veri.stock.wood + '/' + veri.stock.stone + '/' + veri.stock.iron + ' | Kur: ' + veri.rates.wood + '/' + veri.rates.stone + '/' + veri.rates.iron;
+                        var ozet = 'Stok: ' + veri.stock.wood + '/' + veri.stock.stone + '/' + veri.stock.iron + ' | Oran: ' + veri.rates.wood + '/' + veri.rates.stone + '/' + veri.rates.iron;
                         AndroidBot.onBorsaBos(ozet);
                         return;
                     }
@@ -1291,9 +1317,9 @@ class MainActivity : Activity() {
                     calcBtn.click();
                 }
 
-                if (typeof TribalWars !== 'undefined' && typeof TribalWars.get === 'function') {
+                if ($ajaxYenile && typeof TribalWars !== 'undefined' && typeof TribalWars.get === 'function') {
                     TribalWars.get('market', { ajax: 'exchange_data' }, function(data) {
-                        var tablo = tablodanOku();
+                        var tablo = canlıVeriOku();
                         var birlesik = {
                             stock: {
                                 wood: (data && data.stock && data.stock.wood !== undefined) ? parseInt(data.stock.wood, 10) : tablo.stock.wood,
@@ -1317,10 +1343,10 @@ class MainActivity : Activity() {
                         });
                         islemiCalistir(birlesik);
                     }, function() {
-                        islemiCalistir(tablodanOku());
+                        islemiCalistir(canlıVeriOku());
                     });
                 } else {
-                    islemiCalistir(tablodanOku());
+                    islemiCalistir(canlıVeriOku());
                 }
             })();
         """.trimIndent()
@@ -1444,6 +1470,16 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun onBorsaHizSiniri() {
+            handler.post {
+                borsaHizSiniriBitisZamani = System.currentTimeMillis() + 15_000L
+                durumGuncelle("[Borsa] 🛑 Sunucu yoğunluk uyarısı! 15 sn mola verildi...")
+                borsaKutulariniTemizle()
+                borsaIslemde = false
+            }
+        }
+
+        @JavascriptInterface
         fun onBorsaTetiklendi(res: String, adet: Int, kur: Int) {
             handler.post {
                 if (!aktifMi) {
@@ -1457,7 +1493,7 @@ class MainActivity : Activity() {
                     "iron" -> "Demir"
                     else -> res
                 }
-                durumGuncelle("[Borsa] ⚡ $trAd ($adet | Kur: $kur) çekiliyor!")
+                durumGuncelle("[Borsa] ⚡ $trAd ($adet | Oran: $kur) çekiliyor!")
             }
         }
 
