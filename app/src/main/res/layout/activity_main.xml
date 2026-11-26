@@ -430,6 +430,15 @@
                     android:textSize="12sp" />
             </LinearLayout>
 
+            <CheckBox
+                android:id="@+id/cbBinaPremium20"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Premium -%20 ile bas (Hammadde indirimi)"
+                android:textColor="#FFD54F"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -676,7 +685,7 @@
                     android:background="#3B2613"
                     android:gravity="center"
                     android:inputType="number"
-                    android:text="150"
+                    android:text="50"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp" />
 
@@ -696,7 +705,7 @@
                     android:background="#3B2613"
                     android:gravity="center"
                     android:inputType="number"
-                    android:text="45"
+                    android:text="30"
                     android:textColor="#FFFFFF"
                     android:textSize="11sp" />
             </LinearLayout>
