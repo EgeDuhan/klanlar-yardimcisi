@@ -36,7 +36,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="⚔️ Klanlar Tam Otomasyon"
+                android:text="⚔️ Klanlar Akıllı Bot"
                 android:textColor="#F4E4C1"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -131,25 +131,35 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Her görev arası köy ekranına dönmek için alttaki 'Oyun' simgesini tanıt:"
+                android:text="Alt bardaki 'Menü' (Yağma/Bina için) ve 'Oyun' (Kışla için) ikonlarını bir kez seç:"
                 android:textColor="#E6D5B8"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnNoktaMenu"
+                android:layout_width="match_parent"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
+                android:background="#8C6239"
+                android:text="🎯 1. Alt Sol 'Menü' İkonu Seç"
+                android:textColor="#FFF"
                 android:textSize="10sp" />
 
             <Button
                 android:id="@+id/btnNoktaOyun"
                 android:layout_width="match_parent"
-                android:layout_height="32dp"
-                android:layout_marginTop="4dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="3dp"
                 android:background="#8C6239"
-                android:text="🎯 Alt Menü 'Oyun' İkonu Seç"
+                android:text="🎯 2. Alt Menü 'Oyun' İkonu Seç"
                 android:textColor="#FFF"
-                android:textSize="11sp" />
+                android:textSize="10sp" />
 
             <Button
                 android:id="@+id/btnTestKaydir"
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
-                android:layout_marginTop="4dp"
+                android:layout_height="28dp"
+                android:layout_marginTop="3dp"
                 android:background="#5C4026"
                 android:text="⬇️ Aşağı Kaydırmayı Test Et"
                 android:textColor="#F4E4C1"
@@ -214,38 +224,36 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/btnNoktaKisla"
+            <TextView
                 android:layout_width="match_parent"
-                android:layout_height="29dp"
-                android:layout_marginTop="3dp"
-                android:background="#8C6239"
-                android:text="🎯 1. Köydeki Kışla Binasını Seç"
-                android:textColor="#FFF"
-                android:textSize="10sp" />
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Kışla 'Oyun' listesinden otomatik açılır. Kışla içindeki 2 noktayı seç:"
+                android:textColor="#C9B38C"
+                android:textSize="9sp" />
 
             <Button
                 android:id="@+id/btnNoktaMizrakKutu"
                 android:layout_width="match_parent"
-                android:layout_height="29dp"
+                android:layout_height="30dp"
                 android:layout_marginTop="3dp"
                 android:background="#8C6239"
-                android:text="🎯 2. Mızrakçı Adet Kutusunu Seç"
+                android:text="🎯 1. Mızrakçı Adet Kutusunu Seç"
                 android:textColor="#FFF"
                 android:textSize="10sp" />
 
             <Button
                 android:id="@+id/btnNoktaEgit1"
                 android:layout_width="match_parent"
-                android:layout_height="29dp"
+                android:layout_height="30dp"
                 android:layout_marginTop="3dp"
                 android:background="#8C6239"
-                android:text="🎯 3. 'Eğit' Butonunu Seç"
+                android:text="🎯 2. 'Eğit' Butonunu Seç"
                 android:textColor="#FFF"
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- 3. SEKME: YAĞMA ASİSTANI -->
+        <!-- 3. SEKME: YAĞMA ASİSTANI (MENÜ İÇİNDEN OTOMATİK AÇILIR) -->
         <LinearLayout
             android:id="@+id/layoutYagma"
             android:layout_width="match_parent"
@@ -318,23 +326,21 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/btnNoktaYagmaAc"
+            <TextView
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
-                android:layout_marginTop="3dp"
-                android:background="#8C6239"
-                android:text="🎯 1. Yağma Asistanı Simgesini Seç"
-                android:textColor="#FFF"
-                android:textSize="10sp" />
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:text="Menü ➔ Yağma Asistanı otomatik açılır. Sadece 'A' butonunu seç:"
+                android:textColor="#C9B38C"
+                android:textSize="9sp" />
 
             <Button
                 android:id="@+id/btnNoktaYagmaA"
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
-                android:layout_marginTop="3dp"
+                android:layout_height="32dp"
+                android:layout_marginTop="4dp"
                 android:background="#8C6239"
-                android:text="🎯 2. Yağma 'A' Butonunu Seç"
+                android:text="🎯 Yağma 'A' Butonunu Seç"
                 android:textColor="#FFF"
                 android:textSize="10sp" />
         </LinearLayout>
@@ -380,20 +386,10 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/btnNoktaAnaBina"
-                android:layout_width="match_parent"
-                android:layout_height="28dp"
-                android:layout_marginTop="2dp"
-                android:background="#8C6239"
-                android:text="🎯 Köydeki Ana Binayı Seç"
-                android:textColor="#FFF"
-                android:textSize="10sp" />
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
+                android:layout_marginTop="3dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
@@ -467,7 +463,7 @@
 
             <ScrollView
                 android:layout_width="match_parent"
-                android:layout_height="56dp"
+                android:layout_height="62dp"
                 android:layout_marginTop="4dp"
                 android:background="#3B2716"
                 android:padding="4dp">
@@ -534,33 +530,21 @@
                     android:textSize="11sp" />
             </LinearLayout>
 
-            <Button
-                android:id="@+id/btnNoktaIctima"
+            <TextView
                 android:layout_width="match_parent"
-                android:layout_height="28dp"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:background="#8C6239"
-                android:text="🎯 1. İçtima Meydanı Seç"
-                android:textColor="#FFF"
-                android:textSize="10sp" />
-
-            <Button
-                android:id="@+id/btnNoktaTemizlikSekme"
-                android:layout_width="match_parent"
-                android:layout_height="28dp"
-                android:layout_marginTop="2dp"
-                android:background="#8C6239"
-                android:text="🎯 2. 'Temizlik' Sekmesini Seç"
-                android:textColor="#FFF"
-                android:textSize="10sp" />
+                android:text="Menü ➔ İçtima Meydanı ➔ Temizlik otomatik açılır:"
+                android:textColor="#C9B38C"
+                android:textSize="9sp" />
 
             <Button
                 android:id="@+id/btnNoktaTemizlikBaslat"
                 android:layout_width="match_parent"
-                android:layout_height="28dp"
-                android:layout_marginTop="2dp"
+                android:layout_height="30dp"
+                android:layout_marginTop="4dp"
                 android:background="#8C6239"
-                android:text="🎯 3. 'Başlat' Butonunu Seç"
+                android:text="🎯 Temizlik 'Başlat' Butonunu Seç"
                 android:textColor="#FFF"
                 android:textSize="10sp" />
         </LinearLayout>
