@@ -548,7 +548,7 @@ class MainActivity : Activity() {
         }, 3200L)
     }
 
-    // --- 5. PREMİUM BORSASI TURU ---
+    // --- 5. PREMİUM BORSASI TURU (EN AZ 15 ADET) ---
     private fun borsaTurunuCalistir() {
         val odunAktif = findViewById<CheckBox>(R.id.cbBorsaOdun).isChecked
         val kilAktif = findViewById<CheckBox>(R.id.cbBorsaKil).isChecked
@@ -560,7 +560,7 @@ class MainActivity : Activity() {
         if (demirAktif) kaynaklar.add("iron")
         if (kaynaklar.isEmpty()) return
 
-        val miktar = (findViewById<EditText>(R.id.etBorsaMiktar).text.toString().toIntOrNull() ?: 1000).coerceAtLeast(1)
+        val miktar = (findViewById<EditText>(R.id.etBorsaMiktar).text.toString().toIntOrNull() ?: 1000).coerceAtLeast(15)
         val kurLimit = (findViewById<EditText>(R.id.etBorsaKurLimit).text.toString().toIntOrNull() ?: 50).coerceAtLeast(1)
         val mod = if (borsaSatisModu) "sell" else "buy"
 
@@ -595,7 +595,7 @@ class MainActivity : Activity() {
 
                         if (mod === 'sell') {
                             var bosYer = kap - stok;
-                            if (bosYer >= 1 && kur <= limit) {
+                            if (bosYer >= 15 && kur <= limit) {
                                 var satilacak = Math.min(miktar, bosYer);
                                 var inp = document.querySelector('input[name="sell_' + res + '"]');
                                 var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
@@ -609,7 +609,7 @@ class MainActivity : Activity() {
                                 }
                             }
                         } else {
-                            if (stok >= 1 && kur >= limit) {
+                            if (stok >= 15 && kur >= limit) {
                                 var alinacak = Math.min(miktar, stok);
                                 var inp = document.querySelector('input[name="buy_' + res + '"]');
                                 var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
@@ -644,7 +644,7 @@ class MainActivity : Activity() {
                         }, 1500L)
                     }, 700L)
                 } else {
-                    tvDurum.text = "[Borsa] Uygun stok/oran bulunamadı"
+                    tvDurum.text = "[Borsa] En az 15 stok/uygun oran yok"
                     turDevamEdiyor = false
                 }
             }
