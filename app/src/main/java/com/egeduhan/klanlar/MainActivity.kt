@@ -1076,7 +1076,7 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- 5. SESSİZ AJAX BORSA + ANINDA MUTATION OBSERVER ONAY/İPTAL ---
+    // --- 5. DÜZELTİLMİŞ BORSA (AJAX HEADER + CANLI DATA + DOM YEDEĞİ) ---
     private fun borsaSessizKontrolEt() {
         val mevcutUrl = webView.url ?: return
         if (!mevcutUrl.contains("game.php")) {
@@ -1116,29 +1116,39 @@ class MainActivity : Activity() {
                 var ajaxUrl = u.pathname + '?village=' + u.searchParams.get('village') + '&screen=market&mode=exchange&ajax=exchange_data';
                 if (u.searchParams.get('t')) ajaxUrl += '&t=' + u.searchParams.get('t');
 
-                function degerCoz(obj, res, domId) {
-                    if (obj && obj[res] !== undefined && obj[res] !== null) {
-                        var v = obj[res];
-                        if (typeof v === 'number') return Math.floor(v);
-                        if (typeof v === 'string') return parseInt(v.replace(/\./g, ''), 10) || 0;
-                        if (typeof v === 'object') {
-                            var aday = v.amount || v.rate || v.buy || v.sell || v.value;
-                            if (aday !== undefined) return parseInt(String(aday).replace(/\./g, ''), 10) || 0;
-                            var vals = Object.values(v);
-                            for (var k = 0; k < vals.length; k++) {
-                                var n = parseInt(String(vals[k]).replace(/\./g, ''), 10);
-                                if (!isNaN(n) && n > 0) return n;
+                function domSayi(id) {
+                    var el = document.getElementById(id);
+                    if (!el) return 0;
+                    var txt = (el.textContent || el.innerText || '').trim();
+                    var m = txt.match(/(\d[\d.]*)/);
+                    return m ? (parseInt(m[1].replace(/\./g, ''), 10) || 0) : 0;
+                }
+
+                function degerCoz(obj, liveObj, res, domPrefix) {
+                    var kaynaklarObj = [obj, liveObj];
+                    for (var idx = 0; idx < kaynaklarObj.length; idx++) {
+                        var cur = kaynaklarObj[idx];
+                        if (cur && cur[res] !== undefined && cur[res] !== null) {
+                            var v = cur[res];
+                            if (typeof v === 'number' && v > 0) return Math.floor(v);
+                            if (typeof v === 'string') {
+                                var p = parseInt(v.replace(/\./g, ''), 10);
+                                if (!isNaN(p) && p > 0) return p;
+                            }
+                            if (typeof v === 'object') {
+                                var aday = v.amount !== undefined ? v.amount : (v.rate !== undefined ? v.rate : (v.buy !== undefined ? v.buy : v.value));
+                                if (aday !== undefined) {
+                                    var p2 = parseInt(String(aday).replace(/\./g, ''), 10);
+                                    if (!isNaN(p2) && p2 > 0) return p2;
+                                }
                             }
                         }
                     }
-                    var el = document.getElementById(domId + res);
-                    if (el) return parseInt((el.innerText || '').replace(/\./g, ''), 10) || 0;
-                    return 0;
+                    return domSayi(domPrefix + res);
                 }
 
-                fetch(ajaxUrl, {credentials: 'same-origin'})
-                .then(function(r) { return r.json(); })
-                .then(function(data) {
+                function islemiDegerlendir(data) {
+                    var live = (window.PremiumExchange && PremiumExchange.data) ? PremiumExchange.data : {};
                     var hedefler = [$kaynakJson];
                     var mod = '$mod';
                     var maxMiktar = $maxMiktar;
@@ -1146,19 +1156,19 @@ class MainActivity : Activity() {
                     var limit = $kurLimit;
 
                     var stoklar = {
-                        wood: degerCoz(data && data.stock, 'wood', 'premium_exchange_stock_'),
-                        stone: degerCoz(data && data.stock, 'stone', 'premium_exchange_stock_'),
-                        iron: degerCoz(data && data.stock, 'iron', 'premium_exchange_stock_')
+                        wood: degerCoz(data && data.stock, live.stock, 'wood', 'premium_exchange_stock_'),
+                        stone: degerCoz(data && data.stock, live.stock, 'stone', 'premium_exchange_stock_'),
+                        iron: degerCoz(data && data.stock, live.stock, 'iron', 'premium_exchange_stock_')
                     };
                     var kapasiteler = {
-                        wood: degerCoz(data && data.capacity, 'wood', 'premium_exchange_capacity_'),
-                        stone: degerCoz(data && data.capacity, 'stone', 'premium_exchange_capacity_'),
-                        iron: degerCoz(data && data.capacity, 'iron', 'premium_exchange_capacity_')
+                        wood: degerCoz(data && data.capacity, live.capacity, 'wood', 'premium_exchange_capacity_'),
+                        stone: degerCoz(data && data.capacity, live.capacity, 'stone', 'premium_exchange_capacity_'),
+                        iron: degerCoz(data && data.capacity, live.capacity, 'iron', 'premium_exchange_capacity_')
                     };
                     var kurlar = {
-                        wood: degerCoz(data && data.rates, 'wood', 'premium_exchange_rate_'),
-                        stone: degerCoz(data && data.rates, 'stone', 'premium_exchange_rate_'),
-                        iron: degerCoz(data && data.rates, 'iron', 'premium_exchange_rate_')
+                        wood: degerCoz(data && data.rates, live.rates, 'wood', 'premium_exchange_rate_'),
+                        stone: degerCoz(data && data.rates, live.rates, 'stone', 'premium_exchange_rate_'),
+                        iron: degerCoz(data && data.rates, live.rates, 'iron', 'premium_exchange_rate_')
                     };
 
                     var secilen = null;
@@ -1183,7 +1193,7 @@ class MainActivity : Activity() {
                     }
 
                     if (!secilen) {
-                        var ozet = 'Stok: ' + stoklar.wood + '/' + stoklar.stone + '/' + stoklar.iron + ' | Kur: ' + kurlar.wood;
+                        var ozet = 'Stok: ' + stoklar.wood + '/' + stoklar.stone + '/' + stoklar.iron + ' | Kur: ' + kurlar.wood + '/' + kurlar.stone + '/' + kurlar.iron;
                         AndroidBot.onBorsaBos(ozet);
                         return;
                     }
@@ -1204,13 +1214,34 @@ class MainActivity : Activity() {
                     inp.focus();
                     inp.value = secilen.adet;
                     inp.dispatchEvent(new Event('input', {bubbles:true}));
+                    inp.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true}));
                     inp.dispatchEvent(new Event('change', {bubbles:true}));
+
+                    calcBtn.disabled = false;
+                    calcBtn.classList.remove('btn-disabled');
                     calcBtn.scrollIntoView({block:'center'});
                     var r = calcBtn.getBoundingClientRect();
+                    calcBtn.click();
                     AndroidBot.onBorsaHedefBulundu(secilen.res, secilen.adet, secilen.kur, r.left + r.width/2, r.top + r.height/2);
+                }
+
+                fetch(ajaxUrl, {
+                    credentials: 'same-origin',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'TribalWars-Ajax': '1',
+                        'Accept': 'application/json, text/javascript, */*; q=0.01'
+                    }
+                })
+                .then(function(r) { return r.text(); })
+                .then(function(txt) {
+                    var parsed = null;
+                    try { parsed = JSON.parse(txt); } catch (e) { parsed = null; }
+                    var payload = (parsed && parsed.response) ? parsed.response : parsed;
+                    islemiDegerlendir(payload || {});
                 })
                 .catch(function() {
-                    AndroidBot.onBorsaBos('Bağlantı yenileniyor');
+                    islemiDegerlendir({});
                 });
             })();
         """.trimIndent()
@@ -1243,6 +1274,7 @@ class MainActivity : Activity() {
                     if (onayBtn && onayBtn.offsetParent !== null) {
                         if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
                         var r = onayBtn.getBoundingClientRect();
+                        onayBtn.click();
                         AndroidBot.onBorsaPencereHazir(true, r.left + r.width/2, r.top + r.height/2);
                         return true;
                     }
@@ -1254,6 +1286,7 @@ class MainActivity : Activity() {
                     if (iptalBtn && iptalBtn.offsetParent !== null) {
                         if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
                         var r2 = iptalBtn.getBoundingClientRect();
+                        iptalBtn.click();
                         AndroidBot.onBorsaPencereHazir(false, r2.left + r2.width/2, r2.top + r2.height/2);
                         return true;
                     }
