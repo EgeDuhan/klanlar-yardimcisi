@@ -17,6 +17,8 @@ import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
 import android.provider.Settings
+import android.text.InputType
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -31,6 +33,7 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
+import org.json.JSONArray
 import org.json.JSONObject
 
 class MainActivity : Activity() {
@@ -49,6 +52,7 @@ class MainActivity : Activity() {
     private var sonTemizlikZamani = 0L
     private var sonBorsaZamani = 0L
 
+    // Okçusuz dünya birimleri
     private val askerBirimleri = listOf(
         "spear" to "Mızrakçı",
         "sword" to "Kılıç ustası",
@@ -58,6 +62,16 @@ class MainActivity : Activity() {
         "heavy" to "Ağır atlı"
     )
     private var seciliBirimIndex = 0
+
+    // Harita Barbar Yağma Değişkenleri
+    private var haritaYagmaBirimIndex = 4 // Varsayılan: Hafif atlı
+    private val barbarKoordinatlari = mutableListOf<String>()
+    private var barbarSiraIndex = 0
+    private lateinit var cbHaritaYagmaAktif: CheckBox
+    private lateinit var etHaritaMesafe: EditText
+    private lateinit var etHaritaAskerAdet: EditText
+    private lateinit var tvHaritaBirim: TextView
+    private lateinit var tvHaritaBarbarDurum: TextView
 
     private var yagmaSablonu = "A"
     private var borsaSatisModu = false
@@ -92,6 +106,7 @@ class MainActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
         setContentView(R.layout.activity_main)
 
         webView = findViewById(R.id.webView)
@@ -111,7 +126,7 @@ class MainActivity : Activity() {
         }
     }
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
     private fun tarayiciyiHazirla() {
         val settings = webView.settings
         settings.javaScriptEnabled = true
@@ -124,6 +139,18 @@ class MainActivity : Activity() {
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
         settings.userAgentString =
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
+
+        webView.isFocusable = true
+        webView.isFocusableInTouchMode = true
+        webView.requestFocus()
+        webView.setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN || event.action == MotionEvent.ACTION_UP) {
+                if (!v.hasFocus()) {
+                    v.requestFocus()
+                }
+            }
+            false
+        }
 
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
@@ -188,6 +215,7 @@ class MainActivity : Activity() {
         btnMinimize.setOnClickListener {
             mainPanel.visibility = View.GONE
             btnFloatingIcon.visibility = View.VISIBLE
+            webView.requestFocus()
         }
         btnFloatingIcon.setOnClickListener {
             btnFloatingIcon.visibility = View.GONE
@@ -221,6 +249,9 @@ class MainActivity : Activity() {
             yagmaSablonu = if (yagmaSablonu == "A") "B" else "A"
             btnYagmaSablon.text = yagmaSablonu
         }
+
+        // Harita Barbar Yağma Arayüzünü Yağma Sekmesine Ekle
+        haritaBarbarArayuzuKur(findViewById(R.id.layoutYagma))
 
         val tvSeciliBinaAdi = findViewById<TextView>(R.id.tvSeciliBinaAdi)
         val etBinaHedefSeviye = findViewById<EditText>(R.id.etBinaHedefSeviye)
@@ -279,6 +310,231 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun haritaBarbarArayuzuKur(layoutYagma: LinearLayout) {
+        val ayrac = View(this).apply {
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 2).apply {
+                setMargins(0, 12, 0, 12)
+            }
+            setBackgroundColor(Color.parseColor("#6E4B2A"))
+        }
+        layoutYagma.addView(ayrac)
+
+        cbHaritaYagmaAktif = CheckBox(this).apply {
+            text = "Harita Barbar Yağması Aktif"
+            setTextColor(Color.parseColor("#F5E6C8"))
+            textSize = 13f
+        }
+        layoutYagma.addView(cbHaritaYagmaAktif)
+
+        val satir1 = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 6, 0, 6)
+            }
+        }
+
+        val lblMesafe = TextView(this).apply {
+            text = "Mesafe: "
+            setTextColor(Color.parseColor("#F5E6C8"))
+            textSize = 12f
+        }
+        etHaritaMesafe = EditText(this).apply {
+            setText("12")
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#4A321B"))
+            setPadding(14, 6, 14, 6)
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(110, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 0, 12, 0)
+            }
+        }
+
+        val btnHaritaTara = Button(this).apply {
+            text = "🗺️ HARİTADAN BARBAR ÇEK"
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#6E4B2A"))
+            textSize = 11f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setOnClickListener { haritadanBarbarlariTara() }
+        }
+
+        satir1.addView(lblMesafe)
+        satir1.addView(etHaritaMesafe)
+        satir1.addView(btnHaritaTara)
+        layoutYagma.addView(satir1)
+
+        val satir2 = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
+                setMargins(0, 4, 0, 6)
+            }
+        }
+
+        val btnOnceki = Button(this).apply {
+            text = "<"
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#4A321B"))
+            layoutParams = LinearLayout.LayoutParams(75, 75)
+            setOnClickListener {
+                haritaYagmaBirimIndex = (haritaYagmaBirimIndex - 1 + askerBirimleri.size) % askerBirimleri.size
+                tvHaritaBirim.text = askerBirimleri[haritaYagmaBirimIndex].second
+            }
+        }
+
+        tvHaritaBirim = TextView(this).apply {
+            text = askerBirimleri[haritaYagmaBirimIndex].second
+            setTextColor(Color.parseColor("#FFD27D"))
+            gravity = Gravity.CENTER
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+
+        val btnSonraki = Button(this).apply {
+            text = ">"
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#4A321B"))
+            layoutParams = LinearLayout.LayoutParams(75, 75).apply {
+                setMargins(0, 0, 12, 0)
+            }
+            setOnClickListener {
+                haritaYagmaBirimIndex = (haritaYagmaBirimIndex + 1) % askerBirimleri.size
+                tvHaritaBirim.text = askerBirimleri[haritaYagmaBirimIndex].second
+            }
+        }
+
+        val lblAdet = TextView(this).apply {
+            text = "Adet: "
+            setTextColor(Color.parseColor("#F5E6C8"))
+            textSize = 12f
+        }
+
+        etHaritaAskerAdet = EditText(this).apply {
+            setText("5")
+            inputType = InputType.TYPE_CLASS_NUMBER
+            setTextColor(Color.WHITE)
+            setBackgroundColor(Color.parseColor("#4A321B"))
+            setPadding(14, 6, 14, 6)
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(110, LinearLayout.LayoutParams.WRAP_CONTENT)
+        }
+
+        satir2.addView(btnOnceki)
+        satir2.addView(tvHaritaBirim)
+        satir2.addView(btnSonraki)
+        satir2.addView(lblAdet)
+        satir2.addView(etHaritaAskerAdet)
+        layoutYagma.addView(satir2)
+
+        tvHaritaBarbarDurum = TextView(this).apply {
+            setTextColor(Color.parseColor("#A9DFBF"))
+            textSize = 12f
+        }
+        layoutYagma.addView(tvHaritaBarbarDurum)
+
+        barbarListesiniYukle()
+    }
+
+    private fun haritadanBarbarlariTara() {
+        val mevcutUrl = webView.url ?: ""
+        if (!mevcutUrl.contains("screen=map")) {
+            durumGuncelle("[Harita] Harita ekranı açılıyor, yüklendikten sonra tekrar bas!")
+            ekranaGit("map")
+            return
+        }
+
+        val maxMesafe = (etHaritaMesafe.text.toString().toDoubleOrNull() ?: 12.0).coerceIn(1.0, 100.0)
+
+        val js = """
+            (function() {
+                if (typeof TWMap === 'undefined' || !TWMap.villages || typeof game_data === 'undefined') {
+                    return JSON.stringify({ok:false, neden:'harita_yok'});
+                }
+                var myX = parseInt(game_data.village.x, 10);
+                var myY = parseInt(game_data.village.y, 10);
+                var maxM = $maxMesafe;
+                var bulunanlar = [];
+
+                Object.keys(TWMap.villages).forEach(function(key) {
+                    var v = TWMap.villages[key];
+                    if (!v) return;
+                    var isBarbar = (v.owner === 0 || v.owner === '0' || v.owner === false || v.owner === null);
+                    if (!isBarbar) return;
+
+                    var xy = parseInt(v.xy || key, 10);
+                    if (isNaN(xy)) return;
+                    var vx = Math.floor(xy / 1000);
+                    var vy = xy % 1000;
+                    if (vx === myX && vy === myY) return;
+
+                    var dist = Math.hypot(vx - myX, vy - myY);
+                    if (dist <= maxM) {
+                        bulunanlar.push({coord: vx + '|' + vy, dist: dist});
+                    }
+                });
+
+                bulunanlar.sort(function(a, b) { return a.dist - b.dist; });
+                var tekil = [];
+                var gorulen = {};
+                bulunanlar.forEach(function(item) {
+                    if (!gorulen[item.coord]) {
+                        gorulen[item.coord] = true;
+                        tekil.push(item.coord);
+                    }
+                });
+
+                return JSON.stringify({ok:true, merkez: myX + '|' + myY, liste: tekil});
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js) { sonuc ->
+            val obj = parseJsJson(sonuc)
+            if (obj != null && obj.optBoolean("ok")) {
+                val arr: JSONArray = obj.optJSONArray("liste") ?: JSONArray()
+                barbarKoordinatlari.clear()
+                for (i in 0 until arr.length()) {
+                    barbarKoordinatlari.add(arr.getString(i))
+                }
+                barbarSiraIndex = 0
+                barbarListesiniKaydet()
+                val merkez = obj.optString("merkez")
+                durumGuncelle("[Harita] ✅ $merkez çevresinde ${barbarKoordinatlari.size} barbar bulundu!")
+            } else {
+                durumGuncelle("[Harita] ⚠️ Harita verisi okunamadı, haritayı biraz kaydırıp tekrar dene")
+            }
+        }
+    }
+
+    private fun barbarListesiniKaydet() {
+        prefs.edit()
+            .putString("harita_barbar_liste", barbarKoordinatlari.joinToString(","))
+            .putInt("harita_barbar_index", barbarSiraIndex)
+            .apply()
+        barbarDurumMetniGuncelle()
+    }
+
+    private fun barbarListesiniYukle() {
+        barbarKoordinatlari.clear()
+        val kayitli = prefs.getString("harita_barbar_liste", "") ?: ""
+        if (kayitli.isNotEmpty()) {
+            barbarKoordinatlari.addAll(kayitli.split(",").filter { it.contains("|") })
+        }
+        barbarSiraIndex = prefs.getInt("harita_barbar_index", 0)
+        if (barbarSiraIndex >= barbarKoordinatlari.size) barbarSiraIndex = 0
+        barbarDurumMetniGuncelle()
+    }
+
+    private fun barbarDurumMetniGuncelle() {
+        if (barbarKoordinatlari.isEmpty()) {
+            tvHaritaBarbarDurum.text = "Kayıtlı barbar yok (Haritayı açıp 'Barbar Çek' bas)"
+        } else {
+            val siradaki = barbarKoordinatlari[barbarSiraIndex % barbarKoordinatlari.size]
+            tvHaritaBarbarDurum.text = "Kayıtlı Barbar: ${barbarKoordinatlari.size} köy | Sıradaki: ${barbarSiraIndex + 1} ($siradaki)"
+        }
+    }
+
     @SuppressLint("BatteryLife")
     private fun pilKisitlamasiniKaldir() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -334,6 +590,7 @@ class MainActivity : Activity() {
                     val borsaAktif = findViewById<CheckBox>(R.id.cbBorsaAktif).isChecked
                     val askerAktif = findViewById<CheckBox>(R.id.cbAskerAktif).isChecked
                     val yagmaAktif = findViewById<CheckBox>(R.id.cbYagmaAktif).isChecked
+                    val haritaYagmaAktif = cbHaritaYagmaAktif.isChecked
                     val binaAktif = findViewById<CheckBox>(R.id.cbBinaAktif).isChecked
                     val temizlikAktif = findViewById<CheckBox>(R.id.cbTemizlikAktif).isChecked
 
@@ -347,6 +604,10 @@ class MainActivity : Activity() {
                         askerAktif && (simdi - sonAskerZamani >= askerSure) -> {
                             sonAskerZamani = simdi
                             askerTurunuCalistir()
+                        }
+                        haritaYagmaAktif && barbarKoordinatlari.isNotEmpty() && (simdi - sonYagmaZamani >= yagmaSure) -> {
+                            sonYagmaZamani = simdi
+                            haritaBarbarYagmaBaslat()
                         }
                         yagmaAktif && (simdi - sonYagmaZamani >= yagmaSure) -> {
                             sonYagmaZamani = simdi
@@ -404,6 +665,135 @@ class MainActivity : Activity() {
         }, 45L)
     }
 
+    // --- HARİTADAN TOPLANAN BARBARLARI YAĞMALA ---
+    private fun haritaBarbarYagmaBaslat() {
+        if (barbarKoordinatlari.isEmpty()) {
+            durumGuncelle("[Harita Yağma] Kayıtlı barbar yok!")
+            return
+        }
+        turDevamEdiyor = true
+        haritaSiradakiBarbaraSaldir()
+    }
+
+    private fun haritaSiradakiBarbaraSaldir() {
+        if (!aktifMi || !cbHaritaYagmaAktif.isChecked || barbarKoordinatlari.isEmpty()) {
+            turDevamEdiyor = false
+            return
+        }
+
+        val koordinat = barbarKoordinatlari[barbarSiraIndex % barbarKoordinatlari.size]
+        val parcalar = koordinat.split("|")
+        if (parcalar.size != 2) {
+            barbarSiraIndex = (barbarSiraIndex + 1) % barbarKoordinatlari.size
+            barbarListesiniKaydet()
+            turDevamEdiyor = false
+            return
+        }
+
+        val hedefX = parcalar[0]
+        val hedefY = parcalar[1]
+        val (birimKod, birimAd) = askerBirimleri[haritaYagmaBirimIndex]
+        val adet = (etHaritaAskerAdet.text.toString().toIntOrNull() ?: 5).coerceIn(1, 5000)
+
+        durumGuncelle("[Harita Yağma] İçtima Meydanı açılıyor ($koordinat)...")
+        if (!ekranaGit("place")) {
+            turDevamEdiyor = false
+            return
+        }
+
+        handler.postDelayed({
+            if (!aktifMi) return@postDelayed
+            val jsForm = """
+                (function() {
+                    var unitInp = document.querySelector('input[name="$birimKod"]');
+                    var xInp = document.querySelector('input[name="x"]');
+                    var yInp = document.querySelector('input[name="y"]');
+                    var btn = document.getElementById('target_attack');
+                    if (!unitInp || !xInp || !yInp || !btn) return JSON.stringify({ok:false, neden:'form_yok'});
+
+                    var link = document.querySelector('a.units-entry-all[data-unit="$birimKod"]');
+                    var mevcut = 0;
+                    if (link) {
+                        var m = (link.innerText || '').match(/(\d+)/);
+                        if (m) mevcut = parseInt(m[1], 10);
+                    }
+                    if (mevcut < $adet) return JSON.stringify({ok:false, neden:'asker_yok', mevcut:mevcut});
+
+                    unitInp.focus();
+                    unitInp.value = '$adet';
+                    unitInp.dispatchEvent(new Event('input', {bubbles:true}));
+
+                    xInp.value = '$hedefX';
+                    xInp.dispatchEvent(new Event('input', {bubbles:true}));
+                    yInp.value = '$hedefY';
+                    yInp.dispatchEvent(new Event('input', {bubbles:true}));
+
+                    btn.scrollIntoView({block:'center'});
+                    var r = btn.getBoundingClientRect();
+                    return JSON.stringify({ok:true, x: r.left + r.width/2, y: r.top + r.height/2});
+                })();
+            """.trimIndent()
+
+            webView.evaluateJavascript(jsForm) { sonuc ->
+                val obj = parseJsJson(sonuc)
+                if (obj != null && obj.optBoolean("ok")) {
+                    durumGuncelle("[Harita Yağma] 🐎 $koordinat ($adet $birimAd) gönderiliyor...")
+                    handler.postDelayed({
+                        webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
+                        handler.postDelayed({
+                            haritaSaldiriOnayla(koordinat)
+                        }, 2200L)
+                    }, 500L)
+                } else {
+                    val neden = obj?.optString("neden") ?: ""
+                    if (neden == "asker_yok") {
+                        durumGuncelle("[Harita Yağma] Yeterli $birimAd kalmadı, tur tamamlandı.")
+                    } else {
+                        durumGuncelle("[Harita Yağma] İçtima formu yüklenemedi")
+                    }
+                    turDevamEdiyor = false
+                }
+            }
+        }, 2600L)
+    }
+
+    private fun haritaSaldiriOnayla(koordinat: String) {
+        if (!aktifMi) {
+            turDevamEdiyor = false
+            return
+        }
+        val jsOnay = """
+            (function() {
+                var btn = document.getElementById('troop_confirm_go');
+                if (!btn || btn.offsetParent === null) return JSON.stringify({ok:false});
+                btn.scrollIntoView({block:'center'});
+                var r = btn.getBoundingClientRect();
+                return JSON.stringify({ok:true, x: r.left + r.width/2, y: r.top + r.height/2});
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(jsOnay) { sonuc ->
+            val obj = parseJsJson(sonuc)
+            if (obj != null && obj.optBoolean("ok")) {
+                webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
+                barbarSiraIndex = (barbarSiraIndex + 1) % barbarKoordinatlari.size
+                barbarListesiniKaydet()
+                durumGuncelle("[Harita Yağma] ✅ $koordinat yağmaya çıkıldı!")
+                handler.postDelayed({
+                    haritaSiradakiBarbaraSaldir()
+                }, (1600L..2300L).random())
+            } else {
+                durumGuncelle("[Harita Yağma] ⚠️ $koordinat onaylanamadı, sıradakine geçiliyor")
+                barbarSiraIndex = (barbarSiraIndex + 1) % barbarKoordinatlari.size
+                barbarListesiniKaydet()
+                handler.postDelayed({
+                    haritaSiradakiBarbaraSaldir()
+                }, 1500L)
+            }
+        }
+    }
+
+    // --- 1. ASKER ÜRETİMİ ---
     private fun askerTurunuCalistir() {
         val (birimKod, birimAd) = askerBirimleri[seciliBirimIndex]
         val adet = (findViewById<EditText>(R.id.etAskerAdet).text.toString().toIntOrNull() ?: 5).coerceIn(1, 500)
@@ -448,6 +838,7 @@ class MainActivity : Activity() {
         }, 3000L)
     }
 
+    // --- 2. YAĞMA ASİSTANI ---
     private fun yagmaTurunuCalistir() {
         val koySayisi = (findViewById<EditText>(R.id.etYagmaSayi).text.toString().toIntOrNull() ?: 15).coerceIn(1, 100)
         val sinif = if (yagmaSablonu == "A") "farm_icon_a" else "farm_icon_b"
@@ -498,6 +889,7 @@ class MainActivity : Activity() {
         }
     }
 
+    // --- 3. BİNA (NORMAL VEYA PREMİUM -%20 İLE) ---
     private fun binaTurunuCalistir(tvBinaKuyrugu: TextView) {
         val gorev = binaKuyrugu.firstOrNull() ?: return
         val premium20Kullan = findViewById<CheckBox>(R.id.cbBinaPremium20).isChecked
@@ -569,6 +961,7 @@ class MainActivity : Activity() {
         }, 3000L)
     }
 
+    // --- 4. EŞİT SÜRELİ TEMİZLİK TURU (15 : 6 : 3 : 2 ORANI - OKÇUSUZ) ---
     private fun temizlikTurunuCalistir() {
         val seciliSeviyeler = mutableListOf<Int>()
         if (findViewById<CheckBox>(R.id.cbTemizLv1).isChecked) seciliSeviyeler.add(1)
@@ -626,7 +1019,7 @@ class MainActivity : Activity() {
                 if (toplamAgirlik <= 0) toplamAgirlik = agirliklar[hedef] || 1;
                 var payOrani = (agirliklar[hedef] || 1) / toplamAgirlik;
 
-                var birimler = ['spear', 'sword', 'axe', 'archer', 'light', 'marcher', 'heavy'];
+                var birimler = ['spear', 'sword', 'axe', 'light', 'heavy'];
                 var toplamGonderilen = 0;
 
                 birimler.forEach(function(u) {
@@ -683,6 +1076,7 @@ class MainActivity : Activity() {
         }
     }
 
+    // --- 5. SESSİZ AJAX BORSA + ANINDA MUTATION OBSERVER ONAY/İPTAL ---
     private fun borsaSessizKontrolEt() {
         val mevcutUrl = webView.url ?: return
         if (!mevcutUrl.contains("game.php")) {
