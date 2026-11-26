@@ -1,0 +1,728 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1E140A">
+
+    <!-- Tam Ekran Masaüstü Klanlar Tarayıcısı -->
+    <WebView
+        android:id="@+id/webView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Küçültülmüş Yüzen Simge -->
+    <Button
+        android:id="@+id/btnFloatingIcon"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="48dp"
+        android:background="#D93B2613"
+        android:text="⚔️"
+        android:textColor="#F4E4C1"
+        android:textSize="20sp"
+        android:visibility="gone" />
+
+    <!-- Ana Kontrol Paneli -->
+    <LinearLayout
+        android:id="@+id/mainPanel"
+        android:layout_width="295dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="42dp"
+        android:background="#EB2C1D0E"
+        android:orientation="vertical"
+        android:padding="8dp">
+
+        <!-- Üst Sürükleme Çubuğu -->
+        <LinearLayout
+            android:id="@+id/dragHeader"
+            android:layout_width="match_parent"
+            android:layout_height="32dp"
+            android:background="#4A321B"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="4dp">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="⚔️ Klanlar Masaüstü Bot"
+                android:textColor="#F4E4C1"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <Button
+                android:id="@+id/btnMinimize"
+                android:layout_width="32dp"
+                android:layout_height="28dp"
+                android:background="#6E4B2A"
+                android:padding="0dp"
+                android:text="—"
+                android:textColor="#FFFFFF"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- 6 Sekme Satırı -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="30dp"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/tabMerkez"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="#6E4B2A"
+                android:padding="0dp"
+                android:text="Genel"
+                android:textColor="#F4E4C1"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/tabAsker"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="2dp"
+                android:layout_weight="1"
+                android:background="#4A321B"
+                android:padding="0dp"
+                android:text="Asker"
+                android:textColor="#F4E4C1"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/tabYagma"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="2dp"
+                android:layout_weight="1"
+                android:background="#4A321B"
+                android:padding="0dp"
+                android:text="Yağma"
+                android:textColor="#F4E4C1"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/tabBina"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="2dp"
+                android:layout_weight="1"
+                android:background="#4A321B"
+                android:padding="0dp"
+                android:text="Bina"
+                android:textColor="#F4E4C1"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/tabTemiz"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="2dp"
+                android:layout_weight="1"
+                android:background="#4A321B"
+                android:padding="0dp"
+                android:text="Temiz"
+                android:textColor="#F4E4C1"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/tabBorsa"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_marginStart="2dp"
+                android:layout_weight="1"
+                android:background="#4A321B"
+                android:padding="0dp"
+                android:text="Borsa"
+                android:textColor="#FFD54F"
+                android:textSize="10sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- SEKME 1: GENEL -->
+        <LinearLayout
+            android:id="@+id/layoutMerkez"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="visible">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Oyuna giriş yapıp köyüne girdikten sonra çalışmasını istediğin sekmeleri aktif edip BAŞLAT'a bas."
+                android:textColor="#D7C39E"
+                android:textSize="11sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnSayfaYenile"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_weight="1"
+                    android:background="#5C3E21"
+                    android:text="🔄 Yenile"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btnKoyGenel"
+                    android:layout_width="0dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:background="#5C3E21"
+                    android:text="🏰 Köye Dön"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <CheckBox
+                android:id="@+id/cbEkranAcikTut"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:checked="true"
+                android:text="Ekranı açık tut (Uyku modunu engelle)"
+                android:textColor="#F4E4C1"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- SEKME 2: ASKER -->
+        <LinearLayout
+            android:id="@+id/layoutAsker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <CheckBox
+                android:id="@+id/cbAskerAktif"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Kışla Asker Üretimi Aktif"
+                android:textColor="#A5D6A7"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnBirimOnceki"
+                    android:layout_width="34dp"
+                    android:layout_height="30dp"
+                    android:background="#5C3E21"
+                    android:text="◀"
+                    android:textColor="#FFFFFF" />
+
+                <TextView
+                    android:id="@+id/tvSeciliBirim"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="Mızrakçı"
+                    android:textColor="#FFD54F"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnBirimSonraki"
+                    android:layout_width="34dp"
+                    android:layout_height="30dp"
+                    android:background="#5C3E21"
+                    android:text="▶"
+                    android:textColor="#FFFFFF" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Adet:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etAskerAdet"
+                    android:layout_width="55dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="4dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="5"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:text="Tur (dk):"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etAskerDakika"
+                    android:layout_width="50dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="4dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="7"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- SEKME 3: YAĞMA -->
+        <LinearLayout
+            android:id="@+id/layoutYagma"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <CheckBox
+                android:id="@+id/cbYagmaAktif"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Yağma Asistanı Aktif"
+                android:textColor="#A5D6A7"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Şablon:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <Button
+                    android:id="@+id/btnYagmaSablon"
+                    android:layout_width="46dp"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="4dp"
+                    android:background="#6E4B2A"
+                    android:text="A"
+                    android:textColor="#FFD54F"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Köy:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etYagmaSayi"
+                    android:layout_width="45dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="4dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="15"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Dk:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etYagmaDakika"
+                    android:layout_width="42dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="4dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="5"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- SEKME 4: BİNA -->
+        <LinearLayout
+            android:id="@+id/layoutBina"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <CheckBox
+                    android:id="@+id/cbBinaAktif"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Otomatik İnşaat"
+                    android:textColor="#A5D6A7"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Dk:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etBinaDakika"
+                    android:layout_width="42dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="4dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="4"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnBinaOnceki"
+                    android:layout_width="32dp"
+                    android:layout_height="30dp"
+                    android:background="#5C3E21"
+                    android:text="◀"
+                    android:textColor="#FFFFFF" />
+
+                <TextView
+                    android:id="@+id/tvSeciliBinaAdi"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="center"
+                    android:text="Oduncu"
+                    android:textColor="#FFD54F"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnBinaSonraki"
+                    android:layout_width="32dp"
+                    android:layout_height="30dp"
+                    android:background="#5C3E21"
+                    android:text="▶"
+                    android:textColor="#FFFFFF" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Sv:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etBinaHedefSeviye"
+                    android:layout_width="38dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="2dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="15"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+
+                <Button
+                    android:id="@+id/btnBinaSirayaEkle"
+                    android:layout_width="44dp"
+                    android:layout_height="30dp"
+                    android:layout_marginStart="4dp"
+                    android:background="#4B7A24"
+                    android:text="+Ekle"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvBinaKuyrugu"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="#21150A"
+                android:maxLines="4"
+                android:padding="4dp"
+                android:text="Sıra boş"
+                android:textColor="#E0C9A6"
+                android:textSize="10sp" />
+
+            <Button
+                android:id="@+id/btnBinaSirasiTemizle"
+                android:layout_width="match_parent"
+                android:layout_height="26dp"
+                android:layout_marginTop="2dp"
+                android:background="#5C2A24"
+                android:text="Sırayı Temizle"
+                android:textColor="#FFCDD2"
+                android:textSize="10sp" />
+        </LinearLayout>
+
+        <!-- SEKME 5: TEMİZLİK -->
+        <LinearLayout
+            android:id="@+id/layoutTemizlik"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <CheckBox
+                android:id="@+id/cbTemizlikAktif"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Otomatik Temizlik Aktif"
+                android:textColor="#A5D6A7"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Kontrol Aralığı (dk):"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <EditText
+                    android:id="@+id/etTemizlikDakika"
+                    android:layout_width="55dp"
+                    android:layout_height="34dp"
+                    android:layout_marginStart="6dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="30"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- SEKME 6: PREMİUM BORSASI -->
+        <LinearLayout
+            android:id="@+id/layoutBorsa"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <CheckBox
+                    android:id="@+id/cbBorsaAktif"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Premium Borsası Aktif"
+                    android:textColor="#FFD54F"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btnBorsaMod"
+                    android:layout_width="95dp"
+                    android:layout_height="28dp"
+                    android:background="#6E4B2A"
+                    android:text="MOD: SAT (PP)"
+                    android:textColor="#FFFFFF"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <CheckBox
+                    android:id="@+id/cbBorsaOdun"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="Odun"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <CheckBox
+                    android:id="@+id/cbBorsaKil"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="Kil"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+
+                <CheckBox
+                    android:id="@+id/cbBorsaDemir"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:checked="true"
+                    android:text="Demir"
+                    android:textColor="#F4E4C1"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Miktar:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="10sp" />
+
+                <EditText
+                    android:id="@+id/etBorsaMiktar"
+                    android:layout_width="52dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="2dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="1000"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Kur Limiti:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="10sp" />
+
+                <EditText
+                    android:id="@+id/etBorsaKurLimit"
+                    android:layout_width="45dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="2dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="150"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:text="Sn:"
+                    android:textColor="#F4E4C1"
+                    android:textSize="10sp" />
+
+                <EditText
+                    android:id="@+id/etBorsaSaniye"
+                    android:layout_width="36dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="2dp"
+                    android:background="#3B2613"
+                    android:gravity="center"
+                    android:inputType="number"
+                    android:text="45"
+                    android:textColor="#FFFFFF"
+                    android:textSize="11sp" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- BAŞLAT / DURDUR BUTONU -->
+        <Button
+            android:id="@+id/btnBaslatDurdur"
+            android:layout_width="match_parent"
+            android:layout_height="36dp"
+            android:layout_marginTop="8dp"
+            android:background="#4B7A24"
+            android:text="SİSTEMİ BAŞLAT"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <!-- DURUM ÇUBUĞU -->
+        <TextView
+            android:id="@+id/tvDurum"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Durum: Hazır (Giriş yapıp başlat)"
+            android:textColor="#FFD54F"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+</FrameLayout>
