@@ -1,16 +1,22 @@
 package com.egeduhan.klanlar
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.os.SystemClock
+import android.provider.Settings
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -29,7 +35,7 @@ import org.json.JSONObject
 
 class MainActivity : Activity() {
 
-    private lateinit var webView: WebView
+    private lateinit var webView: BackgroundWebView
     private lateinit var tvDurum: TextView
     private lateinit var btnBaslat: Button
     private val handler = Handler(Looper.getMainLooper())
@@ -54,7 +60,7 @@ class MainActivity : Activity() {
     private var seciliBirimIndex = 0
 
     private var yagmaSablonu = "A"
-    private var borsaSatisModu = true
+    private var borsaSatisModu = false // Varsayılan: AL (HAM)
 
     private val tumBinalar = listOf(
         "main" to "Ana bina",
@@ -92,8 +98,17 @@ class MainActivity : Activity() {
         tvDurum = findViewById(R.id.tvDurum)
         btnBaslat = findViewById(R.id.btnBaslatDurdur)
 
+        bildirimIzniIste()
         tarayiciyiHazirla()
         paneliKur()
+    }
+
+    private fun bildirimIzniIste() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 101)
+            }
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -179,6 +194,10 @@ class MainActivity : Activity() {
             mainPanel.visibility = View.VISIBLE
         }
 
+        findViewById<Button>(R.id.btnPilIzni).setOnClickListener {
+            pilKisitlamasiniKaldir()
+        }
+
         findViewById<Button>(R.id.btnSayfaYenile).setOnClickListener { webView.reload() }
         findViewById<Button>(R.id.btnKoyGenel).setOnClickListener { ekranaGit("overview") }
         findViewById<CheckBox>(R.id.cbEkranAcikTut).setOnCheckedChangeListener { _, isChecked ->
@@ -229,6 +248,7 @@ class MainActivity : Activity() {
         }
 
         val btnBorsaMod = findViewById<Button>(R.id.btnBorsaMod)
+        btnBorsaMod.text = "MOD: AL (HAM)"
         btnBorsaMod.setOnClickListener {
             borsaSatisModu = !borsaSatisModu
             btnBorsaMod.text = if (borsaSatisModu) "MOD: SAT (PP)" else "MOD: AL (HAM)"
@@ -239,7 +259,8 @@ class MainActivity : Activity() {
             if (aktifMi) {
                 btnBaslat.text = "SİSTEMİ DURDUR"
                 btnBaslat.setBackgroundColor(Color.parseColor("#A83228"))
-                tvDurum.text = "Durum: Otomasyon başlatıldı..."
+                durumGuncelle("Otomasyon başlatıldı (Arka plan koruması aktif)")
+                arkaPlanServisiniBaslat()
                 sonAskerZamani = 0L
                 sonYagmaZamani = 0L
                 sonBinaZamani = 0L
@@ -250,10 +271,56 @@ class MainActivity : Activity() {
             } else {
                 btnBaslat.text = "SİSTEMİ BAŞLAT"
                 btnBaslat.setBackgroundColor(Color.parseColor("#4B7A24"))
-                tvDurum.text = "Durum: Durduruldu"
+                durumGuncelle("Durduruldu")
+                arkaPlanServisiniDurdur()
                 turDevamEdiyor = false
                 handler.removeCallbacksAndMessages(null)
             }
+        }
+    }
+
+    @SuppressLint("BatteryLife")
+    private fun pilKisitlamasiniKaldir() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                runCatching {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS).apply {
+                        data = Uri.parse("package:$packageName")
+                    }
+                    startActivity(intent)
+                }.onFailure {
+                    startActivity(Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                }
+            } else {
+                durumGuncelle("✅ Pil kısıtlaması zaten kaldırılmış!")
+            }
+        }
+    }
+
+    private fun arkaPlanServisiniBaslat() {
+        val intent = Intent(this, BotForegroundService::class.java).apply {
+            putExtra(BotForegroundService.EXTRA_STATUS, "Klanlar Bot arka planda çalışıyor...")
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
+    }
+
+    private fun arkaPlanServisiniDurdur() {
+        stopService(Intent(this, BotForegroundService::class.java))
+    }
+
+    private fun durumGuncelle(metin: String) {
+        tvDurum.text = "Durum: $metin"
+        if (aktifMi) {
+            val intent = Intent(this, BotForegroundService::class.java).apply {
+                action = BotForegroundService.ACTION_UPDATE
+                putExtra(BotForegroundService.EXTRA_STATUS, metin)
+            }
+            runCatching { startService(intent) }
         }
     }
 
@@ -270,17 +337,13 @@ class MainActivity : Activity() {
                     val binaAktif = findViewById<CheckBox>(R.id.cbBinaAktif).isChecked
                     val temizlikAktif = findViewById<CheckBox>(R.id.cbTemizlikAktif).isChecked
 
-                    val borsaSure = (findViewById<EditText>(R.id.etBorsaSaniye).text.toString().toLongOrNull() ?: 30L).coerceAtLeast(10L) * 1000L
+                    val borsaSure = (findViewById<EditText>(R.id.etBorsaSaniye).text.toString().toLongOrNull() ?: 3L).coerceAtLeast(2L) * 1000L
                     val askerSure = (findViewById<EditText>(R.id.etAskerDakika).text.toString().toLongOrNull() ?: 7L).coerceAtLeast(1L) * 60_000L
                     val yagmaSure = (findViewById<EditText>(R.id.etYagmaDakika).text.toString().toLongOrNull() ?: 5L).coerceAtLeast(1L) * 60_000L
                     val binaSure = (findViewById<EditText>(R.id.etBinaDakika).text.toString().toLongOrNull() ?: 4L).coerceAtLeast(1L) * 60_000L
-                    val temizlikSure = (findViewById<EditText>(R.id.etTemizlikDakika).text.toString().toLongOrNull() ?: 30L).coerceAtLeast(1L) * 60_000L
+                    val temizlikSure = (findViewById<EditText>(R.id.etTemizlikDakika).text.toString().toLongOrNull() ?: 20L).coerceAtLeast(1L) * 60_000L
 
                     when {
-                        borsaAktif && (simdi - sonBorsaZamani >= borsaSure) -> {
-                            sonBorsaZamani = simdi
-                            borsaTurunuCalistir()
-                        }
                         askerAktif && (simdi - sonAskerZamani >= askerSure) -> {
                             sonAskerZamani = simdi
                             askerTurunuCalistir()
@@ -297,21 +360,22 @@ class MainActivity : Activity() {
                             sonTemizlikZamani = simdi
                             temizlikTurunuCalistir()
                         }
-                        else -> {
-                            tvDurum.text = "Durum: Sıradaki tur bekleniyor..."
+                        borsaAktif && (simdi - sonBorsaZamani >= borsaSure) -> {
+                            sonBorsaZamani = simdi
+                            borsaSessizKontrolEt()
                         }
                     }
                 }
-                handler.postDelayed(this, 1500L)
+                handler.postDelayed(this, 600L)
             }
         }
-        handler.postDelayed(dongu, 1000L)
+        handler.postDelayed(dongu, 500L)
     }
 
     private fun ekranaGit(screen: String, ekstraParam: String = ""): Boolean {
         val mevcutUrl = webView.url ?: return false
         if (!mevcutUrl.contains("game.php")) {
-            tvDurum.text = "⚠️ Önce dünyaya giriş yap!"
+            durumGuncelle("⚠️ Önce dünyaya giriş yap!")
             return false
         }
         val uri = Uri.parse(mevcutUrl)
@@ -330,22 +394,23 @@ class MainActivity : Activity() {
 
         val downTime = SystemClock.uptimeMillis()
         val downEvent = MotionEvent.obtain(downTime, downTime, MotionEvent.ACTION_DOWN, viewX, viewY, 0)
-        val upEvent = MotionEvent.obtain(downTime, downTime + (55L..95L).random(), MotionEvent.ACTION_UP, viewX, viewY, 0)
+        val upEvent = MotionEvent.obtain(downTime, downTime + (40L..70L).random(), MotionEvent.ACTION_UP, viewX, viewY, 0)
 
         webView.dispatchTouchEvent(downEvent)
         handler.postDelayed({
             webView.dispatchTouchEvent(upEvent)
             downEvent.recycle()
             upEvent.recycle()
-        }, 65L)
+        }, 45L)
     }
 
+    // --- 1. ASKER ÜRETİMİ ---
     private fun askerTurunuCalistir() {
         val (birimKod, birimAd) = askerBirimleri[seciliBirimIndex]
         val adet = (findViewById<EditText>(R.id.etAskerAdet).text.toString().toIntOrNull() ?: 5).coerceIn(1, 500)
 
         turDevamEdiyor = true
-        tvDurum.text = "[Asker] Kışla açılıyor ($birimAd)..."
+        durumGuncelle("[Asker] Kışla açılıyor ($birimAd)...")
         if (!ekranaGit("barracks")) {
             turDevamEdiyor = false
             return
@@ -369,28 +434,28 @@ class MainActivity : Activity() {
             """.trimIndent()
 
             webView.evaluateJavascript(js) { sonuc ->
-                val temiz = sonuc.trim('"').replace("\\\"", "\"")
-                val obj = runCatching { JSONObject(temiz) }.getOrNull()
+                val obj = parseJsJson(sonuc)
                 if (obj != null && obj.optBoolean("ok")) {
-                    tvDurum.text = "[Asker] ⚔️ $adet $birimAd basılıyor..."
+                    durumGuncelle("[Asker] ⚔️ $adet $birimAd basılıyor...")
                     handler.postDelayed({
                         webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
-                        handler.postDelayed({ turDevamEdiyor = false }, 2200L)
-                    }, 900L)
+                        handler.postDelayed({ turDevamEdiyor = false }, 2000L)
+                    }, 700L)
                 } else {
-                    tvDurum.text = "[Asker] ⚠️ $birimAd kutusu/hammadde uygun değil"
+                    durumGuncelle("[Asker] ⚠️ $birimAd kutusu/hammadde uygun değil")
                     turDevamEdiyor = false
                 }
             }
-        }, 3200L)
+        }, 3000L)
     }
 
+    // --- 2. YAĞMA ASİSTANI ---
     private fun yagmaTurunuCalistir() {
         val koySayisi = (findViewById<EditText>(R.id.etYagmaSayi).text.toString().toIntOrNull() ?: 15).coerceIn(1, 100)
         val sinif = if (yagmaSablonu == "A") "farm_icon_a" else "farm_icon_b"
 
         turDevamEdiyor = true
-        tvDurum.text = "[Yağma] Yağma Asistanı açılıyor..."
+        durumGuncelle("[Yağma] Yağma Asistanı açılıyor...")
         if (!ekranaGit("am_farm")) {
             turDevamEdiyor = false
             return
@@ -398,7 +463,7 @@ class MainActivity : Activity() {
 
         handler.postDelayed({
             yagmaSiradakiKoyeBas(sinif, 1, koySayisi)
-        }, 3200L)
+        }, 3000L)
     }
 
     private fun yagmaSiradakiKoyeBas(sinif: String, mevcut: Int, toplam: Int) {
@@ -419,18 +484,17 @@ class MainActivity : Activity() {
         """.trimIndent()
 
         webView.evaluateJavascript(js) { sonuc ->
-            val temiz = sonuc.trim('"').replace("\\\"", "\"")
-            val obj = runCatching { JSONObject(temiz) }.getOrNull()
+            val obj = parseJsJson(sonuc)
             if (obj != null && obj.optBoolean("ok")) {
-                tvDurum.text = "[Yağma] 🐎 $yagmaSablonu gönderiliyor ($mevcut/$toplam)"
+                durumGuncelle("[Yağma] 🐎 $yagmaSablonu gönderiliyor ($mevcut/$toplam)")
                 handler.postDelayed({
                     webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                     handler.postDelayed({
                         yagmaSiradakiKoyeBas(sinif, mevcut + 1, toplam)
-                    }, (1350L..2100L).random())
-                }, 450L)
+                    }, (1300L..1950L).random())
+                }, 400L)
             } else {
-                tvDurum.text = "[Yağma] Uygun köy kalmadı ($mevcut/$toplam)"
+                durumGuncelle("[Yağma] Uygun köy kalmadı ($mevcut/$toplam)")
                 turDevamEdiyor = false
             }
         }
@@ -442,7 +506,7 @@ class MainActivity : Activity() {
         val premium20Kullan = findViewById<CheckBox>(R.id.cbBinaPremium20).isChecked
 
         turDevamEdiyor = true
-        tvDurum.text = "[Bina] Ana bina açılıyor (${gorev.ad})..."
+        durumGuncelle("[Bina] Ana bina açılıyor (${gorev.ad})...")
 
         if (!ekranaGit("main")) {
             turDevamEdiyor = false
@@ -479,40 +543,50 @@ class MainActivity : Activity() {
             """.trimIndent()
 
             webView.evaluateJavascript(js) { sonuc ->
-                val temiz = sonuc.trim('"').replace("\\\"", "\"")
-                val obj = runCatching { JSONObject(temiz) }.getOrNull()
+                val obj = parseJsJson(sonuc)
                 when (obj?.optString("durum")) {
                     "tamam" -> {
-                        tvDurum.text = "[Bina] ✅ ${gorev.ad} hedef Sv.${gorev.hedefSeviye} tamam!"
+                        durumGuncelle("[Bina] ✅ ${gorev.ad} hedef Sv.${gorev.hedefSeviye} tamam!")
                         binaKuyrugu.remove(gorev)
                         kuyruguKaydet(tvBinaKuyrugu)
                         turDevamEdiyor = false
                     }
                     "bas" -> {
                         val etiket = if (premium20Kullan) "(-%20 PP)" else ""
-                        tvDurum.text = "[Bina] 🔨 ${gorev.ad} $etiket yükseltiliyor..."
+                        durumGuncelle("[Bina] 🔨 ${gorev.ad} $etiket yükseltiliyor...")
                         handler.postDelayed({
                             webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                             if (premium20Kullan) {
-                                handler.postDelayed({ onayPenceresiniTamamla(1, "[Bina]") }, 1400L)
+                                handler.postDelayed({ onayPenceresiniTamamla(1, "[Bina]") }, 1200L)
                             } else {
-                                handler.postDelayed({ turDevamEdiyor = false }, 2200L)
+                                handler.postDelayed({ turDevamEdiyor = false }, 2000L)
                             }
-                        }, 800L)
+                        }, 700L)
                     }
                     else -> {
-                        tvDurum.text = "[Bina] ⏳ ${gorev.ad} için hammadde/kuyruk bekleniyor"
+                        durumGuncelle("[Bina] ⏳ ${gorev.ad} için hammadde/kuyruk bekleniyor")
                         turDevamEdiyor = false
                     }
                 }
             }
-        }, 3200L)
+        }, 3000L)
     }
 
-    // --- 4. TEMİZLİK TURU ---
+    // --- 4. EŞİT SÜRELİ TEMİZLİK TURU (15 : 6 : 3 : 2 ORANI) ---
     private fun temizlikTurunuCalistir() {
+        val seciliSeviyeler = mutableListOf<Int>()
+        if (findViewById<CheckBox>(R.id.cbTemizLv1).isChecked) seciliSeviyeler.add(1)
+        if (findViewById<CheckBox>(R.id.cbTemizLv2).isChecked) seciliSeviyeler.add(2)
+        if (findViewById<CheckBox>(R.id.cbTemizLv3).isChecked) seciliSeviyeler.add(3)
+        if (findViewById<CheckBox>(R.id.cbTemizLv4).isChecked) seciliSeviyeler.add(4)
+
+        if (seciliSeviyeler.isEmpty()) {
+            durumGuncelle("[Temizlik] En az 1 temizlik seviyesi tikle!")
+            return
+        }
+
         turDevamEdiyor = true
-        tvDurum.text = "[Temizlik] İçtima Meydanı açılıyor..."
+        durumGuncelle("[Temizlik] İçtima Meydanı açılıyor...")
         if (!ekranaGit("place", "&mode=scavenge")) {
             turDevamEdiyor = false
             return
@@ -520,36 +594,117 @@ class MainActivity : Activity() {
 
         handler.postDelayed({
             if (!aktifMi) return@postDelayed
-            val js = """
-                (function() {
-                    var btns = Array.from(document.querySelectorAll('a.free_send_button:not(.btn-disabled)'));
-                    if (btns.length === 0) return JSON.stringify({ok:false});
-                    var b = btns[btns.length - 1];
-                    b.scrollIntoView({block:'center'});
-                    var r = b.getBoundingClientRect();
-                    return JSON.stringify({ok:true, x: r.left + r.width/2, y: r.top + r.height/2});
-                })();
-            """.trimIndent()
+            temizlikSiradakiKoluGonder(seciliSeviyeler, 0)
+        }, 3000L)
+    }
 
-            webView.evaluateJavascript(js) { sonuc ->
-                val temiz = sonuc.trim('"').replace("\\\"", "\"")
-                val obj = runCatching { JSONObject(temiz) }.getOrNull()
-                if (obj != null && obj.optBoolean("ok")) {
-                    tvDurum.text = "[Temizlik] 🧹 Temizlik başlatılıyor..."
+    private fun temizlikSiradakiKoluGonder(seciliSeviyeler: List<Int>, index: Int) {
+        if (!aktifMi || index >= seciliSeviyeler.size) {
+            turDevamEdiyor = false
+            return
+        }
+
+        val hedefLv = seciliSeviyeler[index]
+        val kalanSeviyelerJson = seciliSeviyeler.subList(index, seciliSeviyeler.size).joinToString(",")
+
+        // Verim oranları: Lv1=%10 (15x), Lv2=%25 (6x), Lv3=%50 (3x), Lv4=%75 (2x)
+        val js = """
+            (function() {
+                var agirliklar = {1: 15, 2: 6, 3: 3, 4: 2};
+                var kalanlar = [$kalanSeviyelerJson];
+                var hedef = $hedefLv;
+
+                var kutular = Array.from(document.querySelectorAll('.scavenge-option'));
+                var hedefKutu = kutular[hedef - 1];
+                if (!hedefKutu) return JSON.stringify({ok:false, neden:'kutu_yok'});
+
+                var btn = hedefKutu.querySelector('a.free_send_button:not(.btn-disabled)');
+                if (!btn) return JSON.stringify({ok:false, neden:'mesgul'});
+
+                var toplamAgirlik = 0;
+                kalanlar.forEach(function(lv) {
+                    var k = kutular[lv - 1];
+                    if (k && k.querySelector('a.free_send_button:not(.btn-disabled)')) {
+                        toplamAgirlik += (agirliklar[lv] || 1);
+                    }
+                });
+                if (toplamAgirlik <= 0) toplamAgirlik = agirliklar[hedef] || 1;
+                var payOrani = (agirliklar[hedef] || 1) / toplamAgirlik;
+
+                var birimler = ['spear', 'sword', 'axe', 'archer', 'light', 'marcher', 'heavy'];
+                var toplamGonderilen = 0;
+
+                birimler.forEach(function(u) {
+                    var inp = document.querySelector('input.unitsInput[name="' + u + '"]');
+                    if (!inp) return;
+                    var link = document.querySelector('a.units-entry-all[data-unit="' + u + '"]');
+                    var mevcut = 0;
+                    if (link) {
+                        var m = (link.innerText || '').match(/(\d+)/);
+                        if (m) mevcut = parseInt(m[1], 10);
+                    }
+                    if (mevcut > 0) {
+                        var adet = Math.floor(mevcut * payOrani);
+                        if (adet < 1 && mevcut >= 1 && kalanlar.length === 1) adet = mevcut;
+                        if (adet > 0) {
+                            inp.focus();
+                            inp.value = adet;
+                            inp.dispatchEvent(new Event('input', {bubbles:true}));
+                            inp.dispatchEvent(new Event('change', {bubbles:true}));
+                            toplamGonderilen += adet;
+                        }
+                    }
+                });
+
+                if (toplamGonderilen < 10) return JSON.stringify({ok:false, neden:'asker_az'});
+
+                btn.scrollIntoView({block:'center'});
+                var r = btn.getBoundingClientRect();
+                return JSON.stringify({ok:true, adet:toplamGonderilen, x: r.left + r.width/2, y: r.top + r.height/2});
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js) { sonuc ->
+            val obj = parseJsJson(sonuc)
+            if (obj != null && obj.optBoolean("ok")) {
+                val adet = obj.optInt("adet")
+                durumGuncelle("[Temizlik] 🧹 $hedefLv. Seviye ($adet asker) gönderiliyor...")
+                handler.postDelayed({
+                    webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                     handler.postDelayed({
-                        webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
-                        handler.postDelayed({ turDevamEdiyor = false }, 2200L)
-                    }, 800L)
+                        temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1)
+                    }, 1800L)
+                }, 600L)
+            } else {
+                val neden = obj?.optString("neden") ?: ""
+                if (neden == "mesgul") {
+                    durumGuncelle("[Temizlik] $hedefLv. Seviye zaten yolda, sıradakine geçiliyor...")
+                    temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1)
                 } else {
-                    tvDurum.text = "[Temizlik] Boşta temizlik kolu yok"
+                    durumGuncelle("[Temizlik] Uygun/yeterli boşta asker yok")
                     turDevamEdiyor = false
                 }
             }
-        }, 3200L)
+        }
     }
 
-    // --- 5. PREMİUM BORSASI TURU (EN AZ 15 ADET) ---
-    private fun borsaTurunuCalistir() {
+    // --- 5. SESSİZ AJAX BORSA + ANINDA MUTATION OBSERVER ONAY ---
+    private fun borsaSessizKontrolEt() {
+        val mevcutUrl = webView.url ?: return
+        if (!mevcutUrl.contains("game.php")) {
+            durumGuncelle("⚠️ Önce dünyaya giriş yap!")
+            return
+        }
+
+        // Eğer kullanıcı Pazar -> Premium Takası ekranında değilse önce bir kez aç
+        if (!mevcutUrl.contains("screen=market") || !mevcutUrl.contains("mode=exchange")) {
+            turDevamEdiyor = true
+            durumGuncelle("[Borsa] Premium Takası ekranına geçiliyor...")
+            ekranaGit("market", "&mode=exchange")
+            handler.postDelayed({ turDevamEdiyor = false }, 2600L)
+            return
+        }
+
         val odunAktif = findViewById<CheckBox>(R.id.cbBorsaOdun).isChecked
         val kilAktif = findViewById<CheckBox>(R.id.cbBorsaKil).isChecked
         val demirAktif = findViewById<CheckBox>(R.id.cbBorsaDemir).isChecked
@@ -560,98 +715,125 @@ class MainActivity : Activity() {
         if (demirAktif) kaynaklar.add("iron")
         if (kaynaklar.isEmpty()) return
 
-        val miktar = (findViewById<EditText>(R.id.etBorsaMiktar).text.toString().toIntOrNull() ?: 1000).coerceAtLeast(15)
-        val kurLimit = (findViewById<EditText>(R.id.etBorsaKurLimit).text.toString().toIntOrNull() ?: 50).coerceAtLeast(1)
+        val maxMiktar = (findViewById<EditText>(R.id.etBorsaMiktar).text.toString().toIntOrNull() ?: 1000).coerceAtLeast(1)
+        val minStok = (findViewById<EditText>(R.id.etBorsaMinStok).text.toString().toIntOrNull() ?: 15).coerceAtLeast(1)
+        val kurLimit = (findViewById<EditText>(R.id.etBorsaKurLimit).text.toString().toIntOrNull() ?: 1).coerceAtLeast(1)
         val mod = if (borsaSatisModu) "sell" else "buy"
 
         turDevamEdiyor = true
-        tvDurum.text = "[Borsa] Premium Takası kontrol ediliyor..."
+        val kaynakJson = kaynaklar.joinToString(",") { "'$it'" }
 
-        if (!ekranaGit("market", "&mode=exchange")) {
-            turDevamEdiyor = false
-            return
-        }
+        // Sayfa yenilemeden oyunun kendi AJAX veri kanalını okur ve hedef tutarsa anında basar
+        val js = """
+            (function() {
+                var u = new URL(window.location.href);
+                var ajaxUrl = u.pathname + '?village=' + u.searchParams.get('village') + '&screen=market&mode=exchange&ajax=exchange_data';
+                if (u.searchParams.get('t')) ajaxUrl += '&t=' + u.searchParams.get('t');
 
-        handler.postDelayed({
-            if (!aktifMi) return@postDelayed
-            val kaynakJson = kaynaklar.joinToString(",") { "'$it'" }
-            val js = """
-                (function() {
+                fetch(ajaxUrl, {credentials: 'same-origin'})
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
                     var hedefler = [$kaynakJson];
                     var mod = '$mod';
-                    var miktar = $miktar;
+                    var maxMiktar = $maxMiktar;
+                    var minStok = $minStok;
                     var limit = $kurLimit;
 
+                    var secilen = null;
                     for (var i = 0; i < hedefler.length; i++) {
                         var res = hedefler[i];
-                        var stokEl = document.getElementById('premium_exchange_stock_' + res);
-                        var kapEl = document.getElementById('premium_exchange_capacity_' + res);
-                        var kurEl = document.getElementById('premium_exchange_rate_' + res);
-                        if (!stokEl || !kapEl || !kurEl) continue;
+                        var stok = 0, kap = 0, kur = 0;
 
-                        var stok = parseInt(stokEl.innerText.replace(/\./g, '')) || 0;
-                        var kap = parseInt(kapEl.innerText.replace(/\./g, '')) || 0;
-                        var kur = parseInt(kurEl.innerText.replace(/\./g, '')) || 0;
+                        if (data && data.stock && data.capacity && data.rates) {
+                            stok = parseInt(data.stock[res]) || 0;
+                            kap = parseInt(data.capacity[res]) || 0;
+                            kur = parseInt(data.rates[res]) || 0;
+                        } else {
+                            var sEl = document.getElementById('premium_exchange_stock_' + res);
+                            var cEl = document.getElementById('premium_exchange_capacity_' + res);
+                            var rEl = document.getElementById('premium_exchange_rate_' + res);
+                            if (sEl && cEl && rEl) {
+                                stok = parseInt(sEl.innerText.replace(/\./g, '')) || 0;
+                                kap = parseInt(cEl.innerText.replace(/\./g, '')) || 0;
+                                kur = parseInt(rEl.innerText.replace(/\./g, '')) || 0;
+                            }
+                        }
 
                         if (mod === 'sell') {
                             var bosYer = kap - stok;
-                            if (bosYer >= 15 && kur <= limit) {
-                                var satilacak = Math.min(miktar, bosYer);
-                                var inp = document.querySelector('input[name="sell_' + res + '"]');
-                                var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
-                                if (inp && calcBtn) {
-                                    inp.value = satilacak;
-                                    inp.dispatchEvent(new Event('input', {bubbles:true}));
-                                    inp.dispatchEvent(new Event('change', {bubbles:true}));
-                                    calcBtn.scrollIntoView({block:'center'});
-                                    var r = calcBtn.getBoundingClientRect();
-                                    return JSON.stringify({ok:true, res:res, adet:satilacak, kur:kur, x: r.left + r.width/2, y: r.top + r.height/2});
-                                }
+                            if (bosYer >= minStok && kur <= limit) {
+                                secilen = {res: res, adet: Math.min(maxMiktar, bosYer), kur: kur};
+                                break;
                             }
                         } else {
-                            if (stok >= 15 && kur >= limit) {
-                                var alinacak = Math.min(miktar, stok);
-                                var inp = document.querySelector('input[name="buy_' + res + '"]');
-                                var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
-                                if (inp && calcBtn) {
-                                    inp.value = alinacak;
-                                    inp.dispatchEvent(new Event('input', {bubbles:true}));
-                                    inp.dispatchEvent(new Event('change', {bubbles:true}));
-                                    calcBtn.scrollIntoView({block:'center'});
-                                    var r = calcBtn.getBoundingClientRect();
-                                    return JSON.stringify({ok:true, res:res, adet:alinacak, kur:kur, x: r.left + r.width/2, y: r.top + r.height/2});
-                                }
+                            if (stok >= minStok && kur >= limit) {
+                                secilen = {res: res, adet: Math.min(maxMiktar, stok), kur: kur};
+                                break;
                             }
                         }
                     }
-                    return JSON.stringify({ok:false});
-                })();
-            """.trimIndent()
 
-            webView.evaluateJavascript(js) { sonuc ->
-                val temiz = sonuc.trim('"').replace("\\\"", "\"")
-                val obj = runCatching { JSONObject(temiz) }.getOrNull()
-                if (obj != null && obj.optBoolean("ok")) {
-                    val res = obj.optString("res")
-                    val adet = obj.optInt("adet")
-                    val kur = obj.optInt("kur")
-                    tvDurum.text = "[Borsa] 💰 $res ($adet adet | Oran: $kur) hesaplanıyor..."
+                    if (!secilen) {
+                        var wS = (data && data.stock) ? data.stock.wood : '-';
+                        var sS = (data && data.stock) ? data.stock.stone : '-';
+                        var iS = (data && data.stock) ? data.stock.iron : '-';
+                        AndroidBot.onBorsaBos(wS + ' / ' + sS + ' / ' + iS);
+                        return;
+                    }
 
-                    handler.postDelayed({
-                        webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
-                        handler.postDelayed({
-                            onayPenceresiniTamamla(1, "[Borsa]")
-                        }, 1500L)
-                    }, 700L)
-                } else {
-                    tvDurum.text = "[Borsa] En az 15 stok/uygun oran yok"
-                    turDevamEdiyor = false
-                }
-            }
-        }, 3000L)
+                    var inpName = (mod === 'sell' ? 'sell_' : 'buy_') + secilen.res;
+                    var inp = document.querySelector('input[name="' + inpName + '"]');
+                    var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
+                    if (!inp || !calcBtn) {
+                        AndroidBot.onBorsaBos('Form bulunamadı');
+                        return;
+                    }
+
+                    inp.value = secilen.adet;
+                    inp.dispatchEvent(new Event('input', {bubbles:true}));
+                    inp.dispatchEvent(new Event('change', {bubbles:true}));
+                    var r = calcBtn.getBoundingClientRect();
+                    AndroidBot.onBorsaHedefBulundu(secilen.res, secilen.adet, secilen.kur, r.left + r.width/2, r.top + r.height/2);
+                })
+                .catch(function() {
+                    AndroidBot.onBorsaBos('Bağlantı yenileniyor');
+                });
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js, null)
     }
 
-    // --- ORTAK ONAY PENCERESİ TAMAMLAYICI (BORSA & PREMİUM BİNA) ---
+    private fun anindaOnayGozlemcisiKur() {
+        val js = """
+            (function() {
+                if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                function bulVeBildir() {
+                    var btn = document.querySelector('.evt-confirm-btn, .btn-confirm-yes');
+                    if (!btn) {
+                        var adaylar = Array.from(document.querySelectorAll('#premium_exchange_confirm button, #premium_exchange_confirm input, #premium_exchange_confirm a, .popup_box_content button, .popup_box_content input, .popup_box_content a'));
+                        btn = adaylar.find(function(el) {
+                            var t = (el.innerText || el.value || '').trim().toLowerCase();
+                            return t === 'onayla' || t === 'confirm';
+                        });
+                    }
+                    if (btn && btn.offsetParent !== null) {
+                        if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                        var r = btn.getBoundingClientRect();
+                        AndroidBot.onBorsaOnayHazir(r.left + r.width/2, r.top + r.height/2);
+                        return true;
+                    }
+                    return false;
+                }
+                if (!bulVeBildir()) {
+                    window.__klanlarOnayObserver = new MutationObserver(function() { bulVeBildir(); });
+                    window.__klanlarOnayObserver.observe(document.body, {childList: true, subtree: true});
+                }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js, null)
+    }
+
     private fun onayPenceresiniTamamla(deneme: Int, etiket: String) {
         if (!aktifMi) {
             turDevamEdiyor = false
@@ -661,7 +843,7 @@ class MainActivity : Activity() {
             (function() {
                 var btn = document.querySelector('.evt-confirm-btn, .btn-confirm-yes');
                 if (!btn) {
-                    var adaylar = Array.from(document.querySelectorAll('#premium_exchange_confirm button, #premium_exchange_confirm input, #premium_exchange_confirm a, .popup_box_content button, .popup_box_content input, .popup_box_content a'));
+                    var adaylar = Array.from(document.querySelectorAll('.popup_box_content button, .popup_box_content input, .popup_box_content a'));
                     btn = adaylar.find(function(el) {
                         var t = (el.innerText || el.value || '').trim().toLowerCase();
                         return t === 'onayla' || t === 'confirm' || t === 'evet';
@@ -674,14 +856,13 @@ class MainActivity : Activity() {
         """.trimIndent()
 
         webView.evaluateJavascript(js) { sonuc ->
-            val temiz = sonuc.trim('"').replace("\\\"", "\"")
-            val obj = runCatching { JSONObject(temiz) }.getOrNull()
+            val obj = parseJsJson(sonuc)
             if (obj != null && obj.optBoolean("ok")) {
-                tvDurum.text = "$etiket ✅ İşlem onaylandı!"
+                durumGuncelle("$etiket ✅ İşlem onaylandı!")
                 webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
-                handler.postDelayed({ turDevamEdiyor = false }, 1800L)
+                handler.postDelayed({ turDevamEdiyor = false }, 1500L)
             } else if (deneme < 3) {
-                handler.postDelayed({ onayPenceresiniTamamla(deneme + 1, etiket) }, 900L)
+                handler.postDelayed({ onayPenceresiniTamamla(deneme + 1, etiket) }, 800L)
             } else {
                 turDevamEdiyor = false
             }
@@ -702,12 +883,19 @@ class MainActivity : Activity() {
                 turDevamEdiyor = false
                 btnBaslat.text = "SİSTEMİ BAŞLAT"
                 btnBaslat.setBackgroundColor(Color.parseColor("#4B7A24"))
-                tvDurum.text = "🚨 BOT KORUMASI ÇIKTI! Sistem durduruldu!"
+                durumGuncelle("🚨 BOT KORUMASI ÇIKTI! Sistem durduruldu!")
+                arkaPlanServisiniDurdur()
                 runCatching {
                     ToneGenerator(AudioManager.STREAM_ALARM, 100).startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 1500)
                 }
             }
         }
+    }
+
+    private fun parseJsJson(raw: String?): JSONObject? {
+        if (raw.isNullOrBlank() || raw == "null") return null
+        val temiz = raw.trim('"').replace("\\\"", "\"")
+        return runCatching { JSONObject(temiz) }.getOrNull()
     }
 
     private fun kuyruguKaydet(tvKuyruk: TextView) {
@@ -737,8 +925,39 @@ class MainActivity : Activity() {
 
     inner class BotJsBridge {
         @JavascriptInterface
-        fun log(mesaj: String) {
-            handler.post { tvDurum.text = mesaj }
+        fun onBorsaBos(stokBilgisi: String) {
+            handler.post {
+                durumGuncelle("[Borsa] Canlı Stok (O/K/D): $stokBilgisi")
+                turDevamEdiyor = false
+            }
+        }
+
+        @JavascriptInterface
+        fun onBorsaHedefBulundu(res: String, adet: Int, kur: Int, x: Float, y: Float) {
+            handler.post {
+                if (!aktifMi) {
+                    turDevamEdiyor = false
+                    return@post
+                }
+                durumGuncelle("[Borsa] ⚡ $res ($adet adet | Oran: $kur) çekiliyor!")
+                anindaOnayGozlemcisiKur()
+                webViewGercekDokun(x, y)
+
+                // Gözlemci 2.5 sn içinde onay penceresini yakalayamazsa kilidi aç
+                handler.postDelayed({
+                    if (turDevamEdiyor) turDevamEdiyor = false
+                }, 2500L)
+            }
+        }
+
+        @JavascriptInterface
+        fun onBorsaOnayHazir(x: Float, y: Float) {
+            handler.post {
+                if (!aktifMi) return@post
+                durumGuncelle("[Borsa] ✅ Anında onaylandı!")
+                webViewGercekDokun(x, y)
+                handler.postDelayed({ turDevamEdiyor = false }, 900L)
+            }
         }
     }
 
