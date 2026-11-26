@@ -36,7 +36,7 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="⚔️ Klanlar Akıllı Bot (Sürükle)"
+                android:text="⚔️ Klanlar Tam Otomasyon"
                 android:textColor="#F4E4C1"
                 android:textSize="12sp"
                 android:textStyle="bold" />
@@ -131,7 +131,7 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Her işlem sonrası köy görünümüne dönmek için alttaki 'Oyun' simgesini tanıt:"
+                android:text="Her görev arası köy ekranına dönmek için alttaki 'Oyun' simgesini tanıt:"
                 android:textColor="#E6D5B8"
                 android:textSize="10sp" />
 
@@ -156,7 +156,7 @@
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- 2. SEKME: ASKER (KIŞLA) -->
+        <!-- 2. SEKME: ASKER BASMA (KIŞLA) -->
         <LinearLayout
             android:id="@+id/layoutAsker"
             android:layout_width="match_parent"
@@ -175,24 +175,41 @@
                     android:id="@+id/cbAskerAktif"
                     android:layout_width="wrap_content"
                     android:layout_height="30dp"
-                    android:text="Asker Aktif"
+                    android:text="Asker"
                     android:textColor="#F4E4C1"
                     android:textSize="11sp" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="Süre(dk):"
+                    android:layout_marginStart="4dp"
+                    android:text="Dk:"
                     android:textColor="#E6D5B8"
                     android:textSize="10sp" />
 
                 <EditText
                     android:id="@+id/etAskerDakika"
-                    android:layout_width="42dp"
+                    android:layout_width="36dp"
                     android:layout_height="32dp"
                     android:inputType="number"
                     android:text="7"
+                    android:textColor="#FFF"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="Mızrak Adet:"
+                    android:textColor="#E6D5B8"
+                    android:textSize="10sp" />
+
+                <EditText
+                    android:id="@+id/etMizrakSayisi"
+                    android:layout_width="40dp"
+                    android:layout_height="32dp"
+                    android:inputType="number"
+                    android:text="3"
                     android:textColor="#FFF"
                     android:textSize="11sp" />
             </LinearLayout>
@@ -200,7 +217,7 @@
             <Button
                 android:id="@+id/btnNoktaKisla"
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
+                android:layout_height="29dp"
                 android:layout_marginTop="3dp"
                 android:background="#8C6239"
                 android:text="🎯 1. Köydeki Kışla Binasını Seç"
@@ -208,23 +225,23 @@
                 android:textSize="10sp" />
 
             <Button
-                android:id="@+id/btnNoktaEgit1"
+                android:id="@+id/btnNoktaMizrakKutu"
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
+                android:layout_height="29dp"
                 android:layout_marginTop="3dp"
                 android:background="#8C6239"
-                android:text="🎯 2. Birim 'Eğit' Butonu Seç"
+                android:text="🎯 2. Mızrakçı Adet Kutusunu Seç"
                 android:textColor="#FFF"
                 android:textSize="10sp" />
 
             <Button
-                android:id="@+id/btnNoktaEgit2"
+                android:id="@+id/btnNoktaEgit1"
                 android:layout_width="match_parent"
-                android:layout_height="30dp"
+                android:layout_height="29dp"
                 android:layout_marginTop="3dp"
-                android:background="#6E4B2A"
-                android:text="🎯 3. İkinci Birim 'Eğit' (İsteğe Bağlı)"
-                android:textColor="#E6D5B8"
+                android:background="#8C6239"
+                android:text="🎯 3. 'Eğit' Butonunu Seç"
+                android:textColor="#FFF"
                 android:textSize="10sp" />
         </LinearLayout>
 
@@ -322,7 +339,7 @@
                 android:textSize="10sp" />
         </LinearLayout>
 
-        <!-- 4. SEKME: AKILLI BİNA İNŞAATI (OTOMATİK BUL & YÜKSELT) -->
+        <!-- 4. SEKME: AKILLI BİNA İNŞAATI -->
         <LinearLayout
             android:id="@+id/layoutBina"
             android:layout_width="match_parent"
@@ -369,11 +386,10 @@
                 android:layout_height="28dp"
                 android:layout_marginTop="2dp"
                 android:background="#8C6239"
-                android:text="🎯 Köydeki Ana Binayı Seç (Tek Seferlik)"
+                android:text="🎯 Köydeki Ana Binayı Seç"
                 android:textColor="#FFF"
                 android:textSize="10sp" />
 
-            <!-- Tüm Binalar Seçici -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -413,7 +429,6 @@
                     android:textSize="12sp" />
             </LinearLayout>
 
-            <!-- Hedef Seviye ve Ekle -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -452,7 +467,7 @@
 
             <ScrollView
                 android:layout_width="match_parent"
-                android:layout_height="58dp"
+                android:layout_height="56dp"
                 android:layout_marginTop="4dp"
                 android:background="#3B2716"
                 android:padding="4dp">
@@ -478,7 +493,7 @@
                 android:textSize="9sp" />
         </LinearLayout>
 
-        <!-- 5. SEKME: TEMİZLİK (SCAVENGING) -->
+        <!-- 5. SEKME: TEMİZLİK -->
         <LinearLayout
             android:id="@+id/layoutTemizlik"
             android:layout_width="match_parent"
