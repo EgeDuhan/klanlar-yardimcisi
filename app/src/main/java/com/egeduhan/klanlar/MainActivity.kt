@@ -53,10 +53,9 @@ class MainActivity : Activity() {
     private var sonBinaZamani = 0L
     private var sonTemizlikZamani = 0L
     private var sonBorsaZamani = 0L
-    private var sonBorsaAjaxZamani = 0L
     private var borsaHizSiniriBitisZamani = 0L
 
-    // Başkası kaptığında o kaynağı 2.2 sn atlamak için
+    // Başkası kaptığında o kaynağı 2 sn atlamak için
     private var sonDeneneKaynak = ""
     private var basarisizKaynak = ""
     private var basarisizKaynakZamani = 0L
@@ -288,9 +287,7 @@ class MainActivity : Activity() {
 
         val etBorsaSaniye = findViewById<EditText>(R.id.etBorsaSaniye)
         etBorsaSaniye.inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-        if (etBorsaSaniye.text.toString() == "3" || etBorsaSaniye.text.toString() == "0.3") {
-            etBorsaSaniye.setText("0.5")
-        }
+        etBorsaSaniye.setText("1.2")
 
         val btnBorsaMod = findViewById<Button>(R.id.btnBorsaMod)
         btnBorsaMod.text = "MOD: AL (HAM)"
@@ -304,14 +301,13 @@ class MainActivity : Activity() {
             if (aktifMi) {
                 btnBaslat.text = "SİSTEMİ DURDUR"
                 btnBaslat.setBackgroundColor(Color.parseColor("#A83228"))
-                durumGuncelle("Otomasyon başlatıldı (Rate-Limit koruması aktif)")
+                durumGuncelle("Otomasyon başlatıldı")
                 arkaPlanServisiniBaslat()
                 sonAskerZamani = 0L
                 sonYagmaZamani = 0L
                 sonBinaZamani = 0L
                 sonTemizlikZamani = 0L
                 sonBorsaZamani = 0L
-                sonBorsaAjaxZamani = 0L
                 borsaHizSiniriBitisZamani = 0L
                 basarisizKaynak = ""
                 turDevamEdiyor = false
@@ -608,26 +604,21 @@ class MainActivity : Activity() {
                 val borsaAktif = findViewById<CheckBox>(R.id.cbBorsaAktif).isChecked
 
                 // Kilitlenme koruması
-                if (borsaIslemde && (simdi - borsaIslemBaslangic > 1600L)) {
+                if (borsaIslemde && (simdi - borsaIslemBaslangic > 1800L)) {
                     borsaIslemde = false
-                    borsaKutulariniTemizle()
                 }
 
-                // 1) BORSA HİBRİT DÖNGÜSÜ (DOM anlık + AJAX 3.5 sn'de bir)
+                // 1) BORSA DÖNGÜSÜ (Güvenli 1.2 sn + açık onay penceresi kontrolü)
                 if (borsaAktif && !turDevamEdiyor && !borsaIslemde) {
                     if (simdi < borsaHizSiniriBitisZamani) {
                         val kalanSn = ((borsaHizSiniriBitisZamani - simdi) / 1000L) + 1
                         durumGuncelle("[Borsa] ⏳ Sunucu yoğunluk molası (${kalanSn}s)...")
                     } else {
                         val borsaSnText = findViewById<EditText>(R.id.etBorsaSaniye).text.toString().replace(",", ".")
-                        val borsaSureMs = ((borsaSnText.toDoubleOrNull() ?: 0.5) * 1000.0).toLong().coerceAtLeast(350L)
+                        val borsaSureMs = ((borsaSnText.toDoubleOrNull() ?: 1.2) * 1000.0).toLong().coerceAtLeast(1000L)
                         if (simdi - sonBorsaZamani >= borsaSureMs) {
                             sonBorsaZamani = simdi
-                            val ajaxIzni = (simdi - sonBorsaAjaxZamani) >= (3200L..4100L).random()
-                            if (ajaxIzni) {
-                                sonBorsaAjaxZamani = simdi
-                            }
-                            borsaHibritKontrolEt(ajaxIzni)
+                            borsaKontrolVeOnayEt()
                         }
                     }
                 }
@@ -668,10 +659,10 @@ class MainActivity : Activity() {
                         }
                     }
                 }
-                handler.postDelayed(this, 150L)
+                handler.postDelayed(this, 180L)
             }
         }
-        handler.postDelayed(dongu, 150L)
+        handler.postDelayed(dongu, 200L)
     }
 
     private fun ekranaGit(screen: String, ekstraParam: String = ""): Boolean {
@@ -1117,8 +1108,8 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- 5. HİBRİT (SIFIR RATE-LİMİT RİSKLİ) BORSA ---
-    private fun borsaHibritKontrolEt(ajaxYenile: Boolean) {
+    // --- 5. AÇIK PENCERE KONTROLLÜ + TABLO/AJAX BORSA ---
+    private fun borsaKontrolVeOnayEt() {
         val mevcutUrl = webView.url ?: return
         if (!mevcutUrl.contains("game.php")) {
             durumGuncelle("⚠️ Önce dünyaya giriş yap!")
@@ -1158,16 +1149,58 @@ class MainActivity : Activity() {
 
         val js = """
             (function() {
-                // Sunucu yoğunluk uyarısı ekranda mı kontrol et
-                var mevcutHata = document.querySelector('.error_box, #error');
-                if (mevcutHata && mevcutHata.offsetParent !== null) {
-                    var hTxt = (mevcutHata.innerText || '').toLowerCase();
-                    if (hTxt.indexOf('yoğun') !== -1 || hTxt.indexOf('tekrar deneyin') !== -1 || hTxt.indexOf('many') !== -1) {
-                        mevcutHata.remove();
-                        AndroidBot.onBorsaHizSiniri();
-                        return;
+                function gorunurMu(el) {
+                    if (!el) return false;
+                    var st = window.getComputedStyle(el);
+                    if (st.display === 'none' || st.visibility === 'hidden' || parseFloat(st.opacity) === 0) return false;
+                    var r = el.getBoundingClientRect();
+                    return r.width > 5 && r.height > 5;
+                }
+
+                // 1. Ekranda açık "Ticaret teklifine bak" onay penceresi varsa ÖNCE ONU ONAYLA!
+                function acikPencereyiIsle() {
+                    var kutular = Array.from(document.querySelectorAll('.popup_box_container, .popup_box, .popup_box_content, #premium_exchange_confirm')).filter(gorunurMu);
+                    for (var k = 0; k < kutular.length; k++) {
+                        var adaylar = Array.from(kutular[k].querySelectorAll('button, input, a'));
+                        var onayBtn = adaylar.find(function(el) {
+                            if (!gorunurMu(el)) return false;
+                            var t = (el.innerText || el.value || '').trim().toLowerCase();
+                            return el.classList.contains('evt-confirm-btn') || el.classList.contains('btn-confirm-yes') || t === 'onayla' || t === 'confirm';
+                        });
+                        if (onayBtn) {
+                            if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                            onayBtn.click();
+                            AndroidBot.onBorsaSonuc(true);
+                            return true;
+                        }
+                        var iptalBtn = adaylar.find(function(el) {
+                            if (!gorunurMu(el)) return false;
+                            var t = (el.innerText || el.value || '').trim().toLowerCase();
+                            return el.classList.contains('evt-cancel-btn') || el.classList.contains('btn-confirm-no') || t.indexOf('iptal') !== -1 || t === 'cancel' || t === 'kapat';
+                        });
+                        if (iptalBtn) {
+                            if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                            iptalBtn.click();
+                            AndroidBot.onBorsaSonuc(false);
+                            return true;
+                        }
                     }
+                    return false;
+                }
+
+                if (acikPencereyiIsle()) return;
+
+                // 2. Kırmızı hata kutusu kontrolü
+                var mevcutHata = document.querySelector('.error_box, #error');
+                if (gorunurMu(mevcutHata)) {
+                    var hTxt = (mevcutHata.innerText || '').toLowerCase();
                     mevcutHata.remove();
+                    if (hTxt.indexOf('yoğun') !== -1 || hTxt.indexOf('tekrar deneyin') !== -1 || hTxt.indexOf('many') !== -1) {
+                        AndroidBot.onBorsaHizSiniri();
+                    } else {
+                        AndroidBot.onBorsaSonuc(false);
+                    }
+                    return;
                 }
 
                 function ilkSayi(el) {
@@ -1176,35 +1209,37 @@ class MainActivity : Activity() {
                     return m ? (parseInt(m[1].replace(/\./g, ''), 10) || 0) : 0;
                 }
 
-                function canlıVeriOku() {
+                function tablodanOku() {
                     var res = {
                         stock: {wood: 0, stone: 0, iron: 0},
                         capacity: {wood: 0, stone: 0, iron: 0},
                         rates: {wood: 0, stone: 0, iron: 0}
                     };
-                    var live = (window.PremiumExchange && PremiumExchange.data) ? PremiumExchange.data : {};
                     var sirasi = ['wood', 'stone', 'iron'];
                     sirasi.forEach(function(r) {
-                        var domStok = ilkSayi(document.getElementById('premium_exchange_stock_' + r));
-                        var domKap = ilkSayi(document.getElementById('premium_exchange_capacity_' + r));
-                        var domKur = ilkSayi(document.getElementById('premium_exchange_rate_' + r));
+                        res.stock[r] = ilkSayi(document.getElementById('premium_exchange_stock_' + r));
+                        res.capacity[r] = ilkSayi(document.getElementById('premium_exchange_capacity_' + r));
+                        res.rates[r] = ilkSayi(document.getElementById('premium_exchange_rate_' + r));
+                    });
 
-                        res.stock[r] = (live.stock && live.stock[r] !== undefined) ? parseInt(live.stock[r], 10) : domStok;
-                        res.capacity[r] = (live.capacity && live.capacity[r] !== undefined) ? parseInt(live.capacity[r], 10) : domKap;
-                        res.rates[r] = (live.rates && live.rates[r] !== undefined) ? Math.floor(parseFloat(live.rates[r])) : domKur;
+                    // Satır başlıklarından (Stok / Kapasite / Oran) yedek okuma
+                    Array.from(document.querySelectorAll('#premium_exchange_form tr, table.vis tr')).forEach(function(tr) {
+                        if (!tr.cells || tr.cells.length < 4) return;
+                        var baslik = (tr.cells[0].innerText || '').trim().toLowerCase();
+                        for (var i = 0; i < 3; i++) {
+                            var val = ilkSayi(tr.cells[i + 1]);
+                            if (val > 0) {
+                                if (baslik === 'stok' || baslik === 'stock') res.stock[sirasi[i]] = val;
+                                else if (baslik === 'kapasite' || baslik === 'capacity') res.capacity[sirasi[i]] = val;
+                                else if (baslik === 'oran' || baslik === 'kur' || baslik === 'rate') res.rates[sirasi[i]] = val;
+                            }
+                        }
                     });
                     return res;
                 }
 
                 function anindaGozlemciBaslat() {
                     if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-
-                    function gorunurMu(el) {
-                        if (!el) return false;
-                        var r = el.getBoundingClientRect();
-                        return el.offsetParent !== null && r.width > 5 && r.height > 5;
-                    }
-
                     function kontrol() {
                         var hata = document.querySelector('.error_box, #error');
                         if (gorunurMu(hata)) {
@@ -1217,41 +1252,14 @@ class MainActivity : Activity() {
                             }
                             return true;
                         }
-
-                        var onayKutusu = Array.from(document.querySelectorAll('#premium_exchange_confirm, .popup_box_content, .popup_box')).find(gorunurMu);
-                        if (onayKutusu) {
-                            var adaylar = Array.from(onayKutusu.querySelectorAll('button, input, a'));
-                            var onayBtn = adaylar.find(function(el) {
-                                if (!gorunurMu(el)) return false;
-                                var t = (el.innerText || el.value || '').trim().toLowerCase();
-                                return el.classList.contains('evt-confirm-btn') || el.classList.contains('btn-confirm-yes') || t === 'onayla' || t === 'confirm';
-                            });
-                            if (onayBtn) {
-                                if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-                                onayBtn.click();
-                                AndroidBot.onBorsaSonuc(true);
-                                return true;
-                            }
-
-                            var iptalBtn = adaylar.find(function(el) {
-                                if (!gorunurMu(el)) return false;
-                                var t = (el.innerText || el.value || '').trim().toLowerCase();
-                                return el.classList.contains('evt-cancel-btn') || el.classList.contains('btn-confirm-no') || t.indexOf('iptal') !== -1 || t === 'cancel' || t === 'kapat';
-                            });
-                            if (iptalBtn) {
-                                if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-                                iptalBtn.click();
-                                AndroidBot.onBorsaSonuc(false);
-                                return true;
-                            }
-                        }
-                        return false;
+                        return acikPencereyiIsle();
                     }
-
-                    if (!kontrol()) {
-                        window.__klanlarOnayObserver = new MutationObserver(function() { kontrol(); });
-                        window.__klanlarOnayObserver.observe(document.body, {childList: true, subtree: true, attributes: true});
-                    }
+                    window.__klanlarOnayObserver = new MutationObserver(function() { kontrol(); });
+                    window.__klanlarOnayObserver.observe(document.body, {childList: true, subtree: true, attributes: true});
+                    // Animasyon gecikmesi ihtimaline karşı 120ms, 300ms ve 600ms yedek kontroller
+                    setTimeout(kontrol, 120);
+                    setTimeout(kontrol, 300);
+                    setTimeout(kontrol, 600);
                 }
 
                 function islemiCalistir(veri) {
@@ -1317,9 +1325,9 @@ class MainActivity : Activity() {
                     calcBtn.click();
                 }
 
-                if ($ajaxYenile && typeof TribalWars !== 'undefined' && typeof TribalWars.get === 'function') {
+                if (typeof TribalWars !== 'undefined' && typeof TribalWars.get === 'function') {
                     TribalWars.get('market', { ajax: 'exchange_data' }, function(data) {
-                        var tablo = canlıVeriOku();
+                        var tablo = tablodanOku();
                         var birlesik = {
                             stock: {
                                 wood: (data && data.stock && data.stock.wood !== undefined) ? parseInt(data.stock.wood, 10) : tablo.stock.wood,
@@ -1343,10 +1351,10 @@ class MainActivity : Activity() {
                         });
                         islemiCalistir(birlesik);
                     }, function() {
-                        islemiCalistir(canlıVeriOku());
+                        islemiCalistir(tablodanOku());
                     });
                 } else {
-                    islemiCalistir(canlıVeriOku());
+                    islemiCalistir(tablodanOku());
                 }
             })();
         """.trimIndent()
