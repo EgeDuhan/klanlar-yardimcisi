@@ -43,10 +43,10 @@ class KlanlarBotService : AccessibilityService() {
     private var sonTemizlikZamani = 0L
 
     private val tumBinalar = listOf(
-        "Ana Bina", "Kışla", "Ahır", "Atölye", "Gözetleme Kulesi",
-        "Akademi", "Demirci", "İçtima Meydanı", "Heykel", "Pazar Yeri",
-        "Oduncu", "Kil Ocağı", "Demir Madeni", "Çiftlik", "Depo",
-        "Gizli Depo", "Sur"
+        "Ana bina", "Kışla", "Ahır", "Atölye", "Gözetleme Kulesi",
+        "Akademi", "Demirci", "İçtima Meydanı", "Heykel", "Pazar",
+        "Oduncu", "Kil ocağı", "Demir madeni", "Çiftlik", "Depo",
+        "Gizli depo", "Sur"
     )
     private var seciliBinaIndex = 10 // Oduncu
 
@@ -68,6 +68,10 @@ class KlanlarBotService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         arayuzuKur()
+    }
+
+    private fun insansiSure(tabanMs: Long, ekstraMaxMs: Long = 650L): Long {
+        return tabanMs + (150L..ekstraMaxMs).random()
     }
 
     private fun normalizeTr(metin: String): String {
@@ -213,8 +217,8 @@ class KlanlarBotService : AccessibilityService() {
             noktaSec("oyun", "Alt menüdeki 'Oyun' simgesine dokun", tvDurum)
         }
         overlayView.findViewById<Button>(R.id.btnTestKaydir).setOnClickListener {
-            asagiKaydir()
-            tvDurum.text = "Test: Ekran aşağı kaydırıldı"
+            val basarili = asagiKaydir()
+            tvDurum.text = if (basarili) "Test: Ekran başarıyla aşağı kaydırıldı" else "Test: Kaydırılacak liste bulunamadı"
         }
 
         // Asker (Kışla)
@@ -225,7 +229,7 @@ class KlanlarBotService : AccessibilityService() {
             noktaSec("egit1", "Kışladaki 'Eğit' butonuna dokun", tvDurum)
         }
 
-        // Yağma Asistanı (Menü içinden otomatik açılır, sadece A butonu seçilir)
+        // Yağma Asistanı
         overlayView.findViewById<Button>(R.id.btnNoktaYagmaA).setOnClickListener {
             noktaSec("yagma_a", "Yağma Asistanındaki 'A' butonuna dokun", tvDurum)
         }
@@ -337,43 +341,68 @@ class KlanlarBotService : AccessibilityService() {
                     }
                 }
 
-                handler.postDelayed(this, 1800L)
+                handler.postDelayed(this, 2500L)
             }
         }
-        handler.postDelayed(kontrolGorevi, 800L)
+        handler.postDelayed(kontrolGorevi, 1200L)
     }
 
-    // --- 'MENÜ' İÇİNDEN ÖĞE AÇMA (Yağma Asistanı, Ana bina, İçtima Meydanı) ---
+    // --- DOĞRUDAN ERİŞİLEBİLİRLİK DÜĞÜMÜNE TIKLAMA ---
+    private fun dugumeTikla(node: AccessibilityNodeInfo): Boolean {
+        var hedef: AccessibilityNodeInfo? = node
+        var derinlik = 0
+        while (hedef != null && derinlik < 5) {
+            if (hedef.isClickable && hedef.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                return true
+            }
+            hedef = hedef.parent
+            derinlik++
+        }
+        if (node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+            return true
+        }
+        val rect = Rect()
+        node.getBoundsInScreen(rect)
+        if (rect.width() > 0 && rect.height() > 0) {
+            dokun(rect.centerX().toFloat(), rect.centerY().toFloat())
+            return true
+        }
+        return false
+    }
+
+    // --- 'MENÜ' İÇİNDEN ÖĞE AÇMA ---
     private fun menudenOgeAc(
+        etiket: String,
         ogeAdi: String,
         tvDurum: TextView,
         onIcinde: () -> Unit
     ) {
         val menuNokta = kayitliNokta("menu")
         if (menuNokta == null) {
-            tvDurum.text = "Hata: Merkez sekmesinden 'Menü' ikonunu seç!"
+            tvDurum.text = "$etiket Hata: Merkez'den 'Menü' ikonunu seç!"
             return
         }
 
         turDevamEdiyor = true
-        tvDurum.text = "Menü açılıyor..."
+        tvDurum.text = "$etiket Menü açılıyor..."
         dokun(menuNokta.first, menuNokta.second)
 
         handler.postDelayed({
-            metniAraVeTikla(ogeAdi, 0, tvDurum,
+            metniAraVeTikla(etiket, ogeAdi, 0, tvDurum,
                 onBulundu = {
-                    handler.postDelayed({ onIcinde() }, 2300L)
+                    handler.postDelayed({ onIcinde() }, insansiSure(2800L, 700L))
                 },
                 onBulunamadi = {
-                    tvDurum.text = "⚠️ Menüde '$ogeAdi' bulunamadı!"
+                    tvDurum.text = "$etiket ⚠️ Menüde '$ogeAdi' bulunamadı!"
                     turBitirVeKoyeDon()
                 }
             )
-        }, 1800L)
+        }, insansiSure(2500L, 600L))
     }
 
-    // --- 'OYUN' (KÖY) EKRANINDAN BİNA AÇMA (Kışla için) ---
+    // --- 'OYUN' (KÖY) EKRANINDAN BİNA AÇMA ---
     private fun oyundanBinayaGir(
+        etiket: String,
         binaAdi: String,
         tvDurum: TextView,
         onIcinde: () -> Unit
@@ -382,27 +411,28 @@ class KlanlarBotService : AccessibilityService() {
         turDevamEdiyor = true
 
         val baslangic = {
-            metniAraVeTikla(binaAdi, 0, tvDurum,
+            metniAraVeTikla(etiket, binaAdi, 0, tvDurum,
                 onBulundu = {
-                    handler.postDelayed({ onIcinde() }, 2300L)
+                    handler.postDelayed({ onIcinde() }, insansiSure(2800L, 700L))
                 },
                 onBulunamadi = {
-                    tvDurum.text = "⚠️ '$binaAdi' bulunamadı! Oyunda Klasik Görünüm'ü aç."
+                    tvDurum.text = "$etiket ⚠️ '$binaAdi' bulunamadı! Klasik Görünüm'ü aç."
                     turBitirVeKoyeDon()
                 }
             )
         }
 
         if (oyun != null) {
-            tvDurum.text = "Köy ekranına dönülüyor..."
+            tvDurum.text = "$etiket Köy listesine geçiliyor..."
             dokun(oyun.first, oyun.second)
-            handler.postDelayed({ baslangic() }, 2000L)
+            handler.postDelayed({ baslangic() }, insansiSure(2600L, 600L))
         } else {
             baslangic()
         }
     }
 
     private fun metniAraVeTikla(
+        etiket: String,
         aranan: String,
         kaydirma: Int,
         tvDurum: TextView,
@@ -419,34 +449,36 @@ class KlanlarBotService : AccessibilityService() {
         if (root != null) {
             val dugumler = mutableListOf<AccessibilityNodeInfo>()
             dugumleriTopla(root, dugumler)
-            val ekranH = resources.displayMetrics.heightPixels
 
-            val hedef = dugumler.firstOrNull { node ->
-                val hamYazi = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
-                val yaziNorm = normalizeTr(hamYazi)
-                val rect = Rect()
-                node.getBoundsInScreen(rect)
-                (yaziNorm == arananNorm || yaziNorm.startsWith("$arananNorm (")) &&
-                    rect.width() > 5 && rect.height() > 5 &&
-                    rect.centerY() > (ekranH * 0.10) && rect.centerY() < (ekranH * 0.89)
-            }
+            val hedef = dugumler
+                .filter { node ->
+                    val hamYazi = node.text?.toString() ?: node.contentDescription?.toString() ?: ""
+                    val yaziNorm = normalizeTr(hamYazi)
+                    val rect = Rect()
+                    node.getBoundsInScreen(rect)
+                    (yaziNorm == arananNorm || yaziNorm.startsWith("$arananNorm (")) &&
+                        rect.width() > 2 && rect.height() > 2
+                }
+                .minByOrNull { node ->
+                    val rect = Rect()
+                    node.getBoundsInScreen(rect)
+                    rect.width().toLong() * rect.height().toLong()
+                }
 
             if (hedef != null) {
-                val rect = Rect()
-                hedef.getBoundsInScreen(rect)
-                tvDurum.text = "📍 '$aranan' açılıyor..."
-                dokun(rect.centerX().toFloat(), rect.centerY().toFloat())
+                tvDurum.text = "$etiket 📍 '$aranan' ismine tıklandı!"
+                dugumeTikla(hedef)
                 onBulundu()
                 return
             }
         }
 
-        if (kaydirma < 3) {
-            tvDurum.text = "🔍 '$aranan' aranıyor (${kaydirma + 1}/3)..."
+        if (kaydirma < 4) {
+            tvDurum.text = "$etiket 🔍 '$aranan' aranıyor (${kaydirma + 1}/4)..."
             asagiKaydir()
             handler.postDelayed({
-                metniAraVeTikla(aranan, kaydirma + 1, tvDurum, onBulundu, onBulunamadi)
-            }, 1200L)
+                metniAraVeTikla(etiket, aranan, kaydirma + 1, tvDurum, onBulundu, onBulunamadi)
+            }, insansiSure(1800L, 600L))
         } else {
             onBulunamadi()
         }
@@ -458,19 +490,19 @@ class KlanlarBotService : AccessibilityService() {
         val egit1 = kayitliNokta("egit1")
 
         if (egit1 == null) {
-            tvDurum.text = "Hata: Asker sekmesinden 'Eğit' butonunu seç!"
+            tvDurum.text = "[Asker] Hata: 'Eğit' butonunu seç!"
             return
         }
 
         val mizrakAdet = (overlayView.findViewById<EditText>(R.id.etMizrakSayisi).text.toString().toIntOrNull() ?: 3).coerceIn(1, 500).toString()
 
-        oyundanBinayaGir("Kışla", tvDurum) {
+        oyundanBinayaGir("[Asker]", "Kışla", tvDurum) {
             val adimlar = mutableListOf<Adim>()
             if (mizrakKutu != null) {
-                adimlar.add(Adim.Dokun(mizrakKutu.first, mizrakKutu.second, 900L, "Mızrak kutusu seçildi"))
-                adimlar.add(Adim.MetinYaz(mizrakAdet, 900L, "$mizrakAdet mızrakçı yazıldı"))
+                adimlar.add(Adim.Dokun(mizrakKutu.first, mizrakKutu.second, insansiSure(1400L, 500L), "[Asker] Mızrak kutusu seçildi"))
+                adimlar.add(Adim.MetinYaz(mizrakAdet, insansiSure(1400L, 500L), "[Asker] $mizrakAdet mızrakçı yazıldı"))
             }
-            adimlar.add(Adim.Dokun(egit1.first, egit1.second, 1400L, "⚔️ $mizrakAdet mızrakçı basıldı!"))
+            adimlar.add(Adim.Dokun(egit1.first, egit1.second, insansiSure(2000L, 600L), "[Asker] ⚔️ $mizrakAdet mızrakçı basıldı!"))
 
             adimlariYurut(adimlar, 0, tvDurum) {
                 turBitirVeKoyeDon()
@@ -478,23 +510,23 @@ class KlanlarBotService : AccessibilityService() {
         }
     }
 
-    // --- 2. YAĞMA ASİSTANI TURU (MENÜ -> YAĞMA ASİSTANI -> A) ---
+    // --- 2. YAĞMA ASİSTANI TURU ---
     private fun yagmaTurunuCalistir(tvDurum: TextView) {
         val yagmaA = kayitliNokta("yagma_a")
         if (yagmaA == null) {
-            tvDurum.text = "Hata: Yağma sekmesinden 'A' butonunu seç!"
+            tvDurum.text = "[Yağma] Hata: 'A' butonunu seç!"
             return
         }
 
         val koySayisi = (overlayView.findViewById<EditText>(R.id.etYagmaSayi).text.toString().toIntOrNull() ?: 15).coerceIn(1, 100)
         val kaydirAdim = (overlayView.findViewById<EditText>(R.id.etYagmaKaydirAdim).text.toString().toIntOrNull() ?: 5).coerceAtLeast(1)
 
-        menudenOgeAc("Yağma Asistanı", tvDurum) {
+        menudenOgeAc("[Yağma]", "Yağma Asistanı", tvDurum) {
             val adimlar = mutableListOf<Adim>()
             for (i in 1..koySayisi) {
-                adimlar.add(Adim.Dokun(yagmaA.first, yagmaA.second, 850L + (0..300).random(), "🐎 Yağma A ($i/$koySayisi)"))
+                adimlar.add(Adim.Dokun(yagmaA.first, yagmaA.second, insansiSure(1600L, 800L), "[Yağma] 🐎 A ($i/$koySayisi)"))
                 if (i % kaydirAdim == 0 && i < koySayisi) {
-                    adimlar.add(Adim.AsagiKaydir(1100L, "Yağma listesi kaydırılıyor"))
+                    adimlar.add(Adim.AsagiKaydir(insansiSure(1800L, 600L), "[Yağma] Liste kaydırılıyor"))
                 }
             }
 
@@ -504,11 +536,11 @@ class KlanlarBotService : AccessibilityService() {
         }
     }
 
-    // --- 3. AKILLI BİNA TARAMA VE YÜKSELTME TURU (MENÜ -> ANA BİNA) ---
+    // --- 3. AKILLI BİNA TARAMA VE YÜKSELTME TURU ---
     private fun akilliBinaTurunuBaslat(tvDurum: TextView, tvBinaKuyrugu: TextView) {
         val gorev = binaKuyrugu.firstOrNull() ?: return
 
-        menudenOgeAc("Ana bina", tvDurum) {
+        menudenOgeAc("[Bina]", "Ana bina", tvDurum) {
             ekrandaBinayiAraVeBas(gorev, 0, tvDurum, tvBinaKuyrugu)
         }
     }
@@ -532,17 +564,21 @@ class KlanlarBotService : AccessibilityService() {
 
         val tumDugumler = mutableListOf<AccessibilityNodeInfo>()
         dugumleriTopla(root, tumDugumler)
-        val ekranYuksekligi = resources.displayMetrics.heightPixels
         val hedefAdNorm = normalizeTr(gorev.ad)
 
-        val binaDugumu = tumDugumler.firstOrNull { node ->
-            val yaziNorm = normalizeTr(node.text?.toString() ?: node.contentDescription?.toString() ?: "")
-            val rect = Rect()
-            node.getBoundsInScreen(rect)
-            yaziNorm == hedefAdNorm &&
-                rect.centerY() > (ekranYuksekligi * 0.14) &&
-                rect.centerY() < (ekranYuksekligi * 0.84)
-        }
+        val binaDugumu = tumDugumler
+            .filter { node ->
+                val yaziNorm = normalizeTr(node.text?.toString() ?: node.contentDescription?.toString() ?: "")
+                val rect = Rect()
+                node.getBoundsInScreen(rect)
+                (yaziNorm == hedefAdNorm || yaziNorm.startsWith("$hedefAdNorm (")) &&
+                    rect.width() > 2 && rect.height() > 2
+            }
+            .minByOrNull { node ->
+                val rect = Rect()
+                node.getBoundsInScreen(rect)
+                rect.width().toLong() * rect.height().toLong()
+            }
 
         if (binaDugumu != null) {
             val binaRect = Rect()
@@ -564,7 +600,7 @@ class KlanlarBotService : AccessibilityService() {
             }
 
             if (seviyeNumaralari.any { it > gorev.hedefSeviye }) {
-                tvDurum.text = "✅ ${gorev.ad} hedef Sv.${gorev.hedefSeviye} tamamlandı!"
+                tvDurum.text = "[Bina] ✅ ${gorev.ad} hedef Sv.${gorev.hedefSeviye} tamamlandı!"
                 binaKuyrugu.remove(gorev)
                 kuyruguGuncelleVeKaydet(tvBinaKuyrugu)
                 turBitirVeKoyeDon()
@@ -577,48 +613,46 @@ class KlanlarBotService : AccessibilityService() {
             }
 
             if (hedefButon != null) {
-                val btnRect = Rect()
-                hedefButon.getBoundsInScreen(btnRect)
                 val btnYazi = hedefButon.text?.toString() ?: "Yükselt"
-                tvDurum.text = "🔨 ${gorev.ad}: '$btnYazi' basılıyor!"
-                dokun(btnRect.centerX().toFloat(), btnRect.centerY().toFloat())
+                tvDurum.text = "[Bina] 🔨 ${gorev.ad}: '$btnYazi' tıklandı!"
+                dugumeTikla(hedefButon)
 
-                handler.postDelayed({ turBitirVeKoyeDon() }, 1600L)
+                handler.postDelayed({ turBitirVeKoyeDon() }, insansiSure(2200L, 600L))
                 return
             }
         }
 
         if (kaydirmaSayisi < 7) {
-            tvDurum.text = "🔍 '${gorev.ad}' aranıyor... (${kaydirmaSayisi + 1}/7)"
+            tvDurum.text = "[Bina] 🔍 '${gorev.ad}' aranıyor... (${kaydirmaSayisi + 1}/7)"
             asagiKaydir()
             handler.postDelayed({
                 ekrandaBinayiAraVeBas(gorev, kaydirmaSayisi + 1, tvDurum, tvBinaKuyrugu)
-            }, 1300L)
+            }, insansiSure(1800L, 600L))
         } else {
-            tvDurum.text = "⚠️ '${gorev.ad}' bulunamadı, sonraki tura bırakıldı"
+            tvDurum.text = "[Bina] ⚠️ '${gorev.ad}' bulunamadı, sonraki tura bırakıldı"
             turBitirVeKoyeDon()
         }
     }
 
-    // --- 4. TEMİZLİK TURU (MENÜ -> İÇTİMA MEYDANI -> TEMİZLİK) ---
+    // --- 4. TEMİZLİK TURU ---
     private fun temizlikTurunuCalistir(tvDurum: TextView) {
         val baslat = kayitliNokta("temizlik_baslat")
         if (baslat == null) {
-            tvDurum.text = "Hata: Temizlik 'Başlat' butonunu seç!"
+            tvDurum.text = "[Temizlik] Hata: 'Başlat' butonunu seç!"
             return
         }
 
-        menudenOgeAc("İçtima Meydanı", tvDurum) {
-            metniAraVeTikla("Temizlik", 0, tvDurum,
+        menudenOgeAc("[Temizlik]", "İçtima Meydanı", tvDurum) {
+            metniAraVeTikla("[Temizlik]", "Temizlik", 0, tvDurum,
                 onBulundu = {
                     handler.postDelayed({
-                        tvDurum.text = "🧹 Temizlik başlatılıyor..."
+                        tvDurum.text = "[Temizlik] 🧹 Temizlik başlatılıyor..."
                         dokun(baslat.first, baslat.second)
-                        handler.postDelayed({ turBitirVeKoyeDon() }, 1500L)
-                    }, 1800L)
+                        handler.postDelayed({ turBitirVeKoyeDon() }, insansiSure(2200L, 600L))
+                    }, insansiSure(2500L, 600L))
                 },
                 onBulunamadi = {
-                    tvDurum.text = "⚠️ 'Temizlik' sekmesi bulunamadı!"
+                    tvDurum.text = "[Temizlik] ⚠️ 'Temizlik' sekmesi bulunamadı!"
                     turBitirVeKoyeDon()
                 }
             )
@@ -683,7 +717,7 @@ class KlanlarBotService : AccessibilityService() {
     private fun turBitirVeKoyeDon() {
         val oyun = kayitliNokta("oyun")
         if (oyun != null) dokun(oyun.first, oyun.second)
-        handler.postDelayed({ turDevamEdiyor = false }, 1500L)
+        handler.postDelayed({ turDevamEdiyor = false }, insansiSure(2200L, 600L))
     }
 
     private fun noktaSec(anahtar: String, mesaj: String, tvDurum: TextView) {
@@ -736,23 +770,42 @@ class KlanlarBotService : AccessibilityService() {
         val sapmaX = x + (-4..4).random()
         val sapmaY = y + (-4..4).random()
         val path = Path().apply { moveTo(sapmaX, sapmaY) }
-        val stroke = GestureDescription.StrokeDescription(path, 0L, 65L)
+        val stroke = GestureDescription.StrokeDescription(path, 0L, (75L..115L).random())
         dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
     }
 
-    private fun asagiKaydir() {
+    private fun asagiKaydir(): Boolean {
+        val root = rootInActiveWindow
+        if (root != null) {
+            val dugumler = mutableListOf<AccessibilityNodeInfo>()
+            dugumleriTopla(root, dugumler)
+
+            val kaydirilabilir = dugumler
+                .filter { it.isScrollable }
+                .maxByOrNull {
+                    val r = Rect()
+                    it.getBoundsInScreen(r)
+                    r.width().toLong() * r.height().toLong()
+                }
+
+            if (kaydirilabilir != null && kaydirilabilir.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
+                return true
+            }
+        }
+
         val w = resources.displayMetrics.widthPixels.toFloat()
         val h = resources.displayMetrics.heightPixels.toFloat()
-        val startX = (w * 0.5f) + (-15..15).random()
-        val startY = h * 0.72f
-        val endY = h * 0.36f
+        val startX = (w * 0.25f) + (-10..10).random()
+        val startY = h * 0.76f
+        val endY = h * 0.28f
 
         val path = Path().apply {
             moveTo(startX, startY)
             lineTo(startX, endY)
         }
-        val stroke = GestureDescription.StrokeDescription(path, 0L, 320L)
+        val stroke = GestureDescription.StrokeDescription(path, 0L, (580L..720L).random())
         dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
+        return true
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}
