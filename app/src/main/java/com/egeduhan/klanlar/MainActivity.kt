@@ -60,7 +60,7 @@ class MainActivity : Activity() {
     private var seciliBirimIndex = 0
 
     private var yagmaSablonu = "A"
-    private var borsaSatisModu = false // Varsayılan: AL (HAM)
+    private var borsaSatisModu = false
 
     private val tumBinalar = listOf(
         "main" to "Ana bina",
@@ -404,7 +404,6 @@ class MainActivity : Activity() {
         }, 45L)
     }
 
-    // --- 1. ASKER ÜRETİMİ ---
     private fun askerTurunuCalistir() {
         val (birimKod, birimAd) = askerBirimleri[seciliBirimIndex]
         val adet = (findViewById<EditText>(R.id.etAskerAdet).text.toString().toIntOrNull() ?: 5).coerceIn(1, 500)
@@ -436,7 +435,7 @@ class MainActivity : Activity() {
             webView.evaluateJavascript(js) { sonuc ->
                 val obj = parseJsJson(sonuc)
                 if (obj != null && obj.optBoolean("ok")) {
-                    durumGuncelle("[Asker] ⚔️ $adet$birimAd basılıyor...")
+                    durumGuncelle("[Asker] ⚔️ $adet $birimAd basılıyor...")
                     handler.postDelayed({
                         webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                         handler.postDelayed({ turDevamEdiyor = false }, 2000L)
@@ -449,7 +448,6 @@ class MainActivity : Activity() {
         }, 3000L)
     }
 
-    // --- 2. YAĞMA ASİSTANI ---
     private fun yagmaTurunuCalistir() {
         val koySayisi = (findViewById<EditText>(R.id.etYagmaSayi).text.toString().toIntOrNull() ?: 15).coerceIn(1, 100)
         val sinif = if (yagmaSablonu == "A") "farm_icon_a" else "farm_icon_b"
@@ -500,7 +498,6 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- 3. BİNA (NORMAL VEYA PREMİUM -%20 İLE) ---
     private fun binaTurunuCalistir(tvBinaKuyrugu: TextView) {
         val gorev = binaKuyrugu.firstOrNull() ?: return
         val premium20Kullan = findViewById<CheckBox>(R.id.cbBinaPremium20).isChecked
@@ -553,7 +550,7 @@ class MainActivity : Activity() {
                     }
                     "bas" -> {
                         val etiket = if (premium20Kullan) "(-%20 PP)" else ""
-                        durumGuncelle("[Bina] 🔨 ${gorev.ad}$etiket yükseltiliyor...")
+                        durumGuncelle("[Bina] 🔨 ${gorev.ad} $etiket yükseltiliyor...")
                         handler.postDelayed({
                             webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                             if (premium20Kullan) {
@@ -572,7 +569,6 @@ class MainActivity : Activity() {
         }, 3000L)
     }
 
-    // --- 4. EŞİT SÜRELİ TEMİZLİK TURU (15 : 6 : 3 : 2 ORANI) ---
     private fun temizlikTurunuCalistir() {
         val seciliSeviyeler = mutableListOf<Int>()
         if (findViewById<CheckBox>(R.id.cbTemizLv1).isChecked) seciliSeviyeler.add(1)
@@ -624,4 +620,363 @@ class MainActivity : Activity() {
                 kalanlar.forEach(function(lv) {
                     var k = kutular[lv - 1];
                     if (k && k.querySelector('a.free_send_button:not(.btn-disabled)')) {
-                        toplamAgirlik += (agirlik
+                        toplamAgirlik += (agirliklar[lv] || 1);
+                    }
+                });
+                if (toplamAgirlik <= 0) toplamAgirlik = agirliklar[hedef] || 1;
+                var payOrani = (agirliklar[hedef] || 1) / toplamAgirlik;
+
+                var birimler = ['spear', 'sword', 'axe', 'archer', 'light', 'marcher', 'heavy'];
+                var toplamGonderilen = 0;
+
+                birimler.forEach(function(u) {
+                    var inp = document.querySelector('input.unitsInput[name="' + u + '"]');
+                    if (!inp) return;
+                    var link = document.querySelector('a.units-entry-all[data-unit="' + u + '"]');
+                    var mevcut = 0;
+                    if (link) {
+                        var m = (link.innerText || '').match(/(\d+)/);
+                        if (m) mevcut = parseInt(m[1], 10);
+                    }
+                    if (mevcut > 0) {
+                        var adet = Math.floor(mevcut * payOrani);
+                        if (adet < 1 && mevcut >= 1 && kalanlar.length === 1) adet = mevcut;
+                        if (adet > 0) {
+                            inp.focus();
+                            inp.value = adet;
+                            inp.dispatchEvent(new Event('input', {bubbles:true}));
+                            inp.dispatchEvent(new Event('change', {bubbles:true}));
+                            toplamGonderilen += adet;
+                        }
+                    }
+                });
+
+                if (toplamGonderilen < 10) return JSON.stringify({ok:false, neden:'asker_az'});
+
+                btn.scrollIntoView({block:'center'});
+                var r = btn.getBoundingClientRect();
+                return JSON.stringify({ok:true, adet:toplamGonderilen, x: r.left + r.width/2, y: r.top + r.height/2});
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js) { sonuc ->
+            val obj = parseJsJson(sonuc)
+            if (obj != null && obj.optBoolean("ok")) {
+                val adet = obj.optInt("adet")
+                durumGuncelle("[Temizlik] 🧹 $hedefLv. Seviye ($adet asker) gönderiliyor...")
+                handler.postDelayed({
+                    webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
+                    handler.postDelayed({
+                        temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1)
+                    }, 1800L)
+                }, 600L)
+            } else {
+                val neden = obj?.optString("neden") ?: ""
+                if (neden == "mesgul") {
+                    durumGuncelle("[Temizlik] $hedefLv. Seviye zaten yolda, sıradakine geçiliyor...")
+                    temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1)
+                } else {
+                    durumGuncelle("[Temizlik] Uygun/yeterli boşta asker yok")
+                    turDevamEdiyor = false
+                }
+            }
+        }
+    }
+
+    private fun borsaSessizKontrolEt() {
+        val mevcutUrl = webView.url ?: return
+        if (!mevcutUrl.contains("game.php")) {
+            durumGuncelle("⚠️ Önce dünyaya giriş yap!")
+            return
+        }
+
+        if (!mevcutUrl.contains("screen=market") || !mevcutUrl.contains("mode=exchange")) {
+            turDevamEdiyor = true
+            durumGuncelle("[Borsa] Premium Takası ekranına geçiliyor...")
+            ekranaGit("market", "&mode=exchange")
+            handler.postDelayed({ turDevamEdiyor = false }, 2600L)
+            return
+        }
+
+        val odunAktif = findViewById<CheckBox>(R.id.cbBorsaOdun).isChecked
+        val kilAktif = findViewById<CheckBox>(R.id.cbBorsaKil).isChecked
+        val demirAktif = findViewById<CheckBox>(R.id.cbBorsaDemir).isChecked
+
+        val kaynaklar = mutableListOf<String>()
+        if (odunAktif) kaynaklar.add("wood")
+        if (kilAktif) kaynaklar.add("stone")
+        if (demirAktif) kaynaklar.add("iron")
+        if (kaynaklar.isEmpty()) return
+
+        val maxMiktar = (findViewById<EditText>(R.id.etBorsaMiktar).text.toString().toIntOrNull() ?: 1000).coerceAtLeast(1)
+        val minStok = (findViewById<EditText>(R.id.etBorsaMinStok).text.toString().toIntOrNull() ?: 15).coerceAtLeast(1)
+        val kurLimit = (findViewById<EditText>(R.id.etBorsaKurLimit).text.toString().toIntOrNull() ?: 1).coerceAtLeast(1)
+        val mod = if (borsaSatisModu) "sell" else "buy"
+
+        turDevamEdiyor = true
+        val kaynakJson = kaynaklar.joinToString(",") { "'$it'" }
+
+        val js = """
+            (function() {
+                var u = new URL(window.location.href);
+                var ajaxUrl = u.pathname + '?village=' + u.searchParams.get('village') + '&screen=market&mode=exchange&ajax=exchange_data';
+                if (u.searchParams.get('t')) ajaxUrl += '&t=' + u.searchParams.get('t');
+
+                function degerCoz(obj, res, domId) {
+                    if (obj && obj[res] !== undefined && obj[res] !== null) {
+                        var v = obj[res];
+                        if (typeof v === 'number') return Math.floor(v);
+                        if (typeof v === 'string') return parseInt(v.replace(/\./g, ''), 10) || 0;
+                        if (typeof v === 'object') {
+                            var aday = v.amount || v.rate || v.buy || v.sell || v.value;
+                            if (aday !== undefined) return parseInt(String(aday).replace(/\./g, ''), 10) || 0;
+                            var vals = Object.values(v);
+                            for (var k = 0; k < vals.length; k++) {
+                                var n = parseInt(String(vals[k]).replace(/\./g, ''), 10);
+                                if (!isNaN(n) && n > 0) return n;
+                            }
+                        }
+                    }
+                    var el = document.getElementById(domId + res);
+                    if (el) return parseInt((el.innerText || '').replace(/\./g, ''), 10) || 0;
+                    return 0;
+                }
+
+                fetch(ajaxUrl, {credentials: 'same-origin'})
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var hedefler = [$kaynakJson];
+                    var mod = '$mod';
+                    var maxMiktar = $maxMiktar;
+                    var minStok = $minStok;
+                    var limit = $kurLimit;
+
+                    var stoklar = {
+                        wood: degerCoz(data && data.stock, 'wood', 'premium_exchange_stock_'),
+                        stone: degerCoz(data && data.stock, 'stone', 'premium_exchange_stock_'),
+                        iron: degerCoz(data && data.stock, 'iron', 'premium_exchange_stock_')
+                    };
+                    var kapasiteler = {
+                        wood: degerCoz(data && data.capacity, 'wood', 'premium_exchange_capacity_'),
+                        stone: degerCoz(data && data.capacity, 'stone', 'premium_exchange_capacity_'),
+                        iron: degerCoz(data && data.capacity, 'iron', 'premium_exchange_capacity_')
+                    };
+                    var kurlar = {
+                        wood: degerCoz(data && data.rates, 'wood', 'premium_exchange_rate_'),
+                        stone: degerCoz(data && data.rates, 'stone', 'premium_exchange_rate_'),
+                        iron: degerCoz(data && data.rates, 'iron', 'premium_exchange_rate_')
+                    };
+
+                    var secilen = null;
+                    for (var i = 0; i < hedefler.length; i++) {
+                        var res = hedefler[i];
+                        var stok = stoklar[res] || 0;
+                        var kap = kapasiteler[res] || 0;
+                        var kur = kurlar[res] || 0;
+
+                        if (mod === 'sell') {
+                            var bosYer = kap - stok;
+                            if (bosYer >= minStok && (kur <= limit || kur === 0)) {
+                                secilen = {res: res, adet: Math.min(maxMiktar, bosYer), kur: kur};
+                                break;
+                            }
+                        } else {
+                            if (stok >= minStok && (kur >= limit || limit <= 1)) {
+                                secilen = {res: res, adet: Math.min(maxMiktar, stok), kur: kur};
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!secilen) {
+                        var ozet = 'Stok: ' + stoklar.wood + '/' + stoklar.stone + '/' + stoklar.iron + ' | Kur: ' + kurlar.wood;
+                        AndroidBot.onBorsaBos(ozet);
+                        return;
+                    }
+
+                    var inpName = (mod === 'sell' ? 'sell_' : 'buy_') + secilen.res;
+                    var inp = document.querySelector('input[name="' + inpName + '"]');
+                    var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
+                    if (!inp || !calcBtn) {
+                        AndroidBot.onBorsaBos('Form kutusu bulunamadı');
+                        return;
+                    }
+
+                    inp.focus();
+                    inp.value = secilen.adet;
+                    inp.dispatchEvent(new Event('input', {bubbles:true}));
+                    inp.dispatchEvent(new Event('change', {bubbles:true}));
+                    calcBtn.scrollIntoView({block:'center'});
+                    var r = calcBtn.getBoundingClientRect();
+                    AndroidBot.onBorsaHedefBulundu(secilen.res, secilen.adet, secilen.kur, r.left + r.width/2, r.top + r.height/2);
+                })
+                .catch(function() {
+                    AndroidBot.onBorsaBos('Bağlantı yenileniyor');
+                });
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js, null)
+    }
+
+    private fun anindaOnayGozlemcisiKur() {
+        val js = """
+            (function() {
+                if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                function bulVeBildir() {
+                    var btn = document.querySelector('.evt-confirm-btn, .btn-confirm-yes');
+                    if (!btn) {
+                        var adaylar = Array.from(document.querySelectorAll('#premium_exchange_confirm button, #premium_exchange_confirm input, #premium_exchange_confirm a, .popup_box_content button, .popup_box_content input, .popup_box_content a'));
+                        btn = adaylar.find(function(el) {
+                            var t = (el.innerText || el.value || '').trim().toLowerCase();
+                            return t === 'onayla' || t === 'confirm';
+                        });
+                    }
+                    if (btn && btn.offsetParent !== null) {
+                        if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                        var r = btn.getBoundingClientRect();
+                        AndroidBot.onBorsaOnayHazir(r.left + r.width/2, r.top + r.height/2);
+                        return true;
+                    }
+                    return false;
+                }
+                if (!bulVeBildir()) {
+                    window.__klanlarOnayObserver = new MutationObserver(function() { bulVeBildir(); });
+                    window.__klanlarOnayObserver.observe(document.body, {childList: true, subtree: true});
+                }
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js, null)
+    }
+
+    private fun onayPenceresiniTamamla(deneme: Int, etiket: String) {
+        if (!aktifMi) {
+            turDevamEdiyor = false
+            return
+        }
+        val js = """
+            (function() {
+                var btn = document.querySelector('.evt-confirm-btn, .btn-confirm-yes');
+                if (!btn) {
+                    var adaylar = Array.from(document.querySelectorAll('.popup_box_content button, .popup_box_content input, .popup_box_content a'));
+                    btn = adaylar.find(function(el) {
+                        var t = (el.innerText || el.value || '').trim().toLowerCase();
+                        return t === 'onayla' || t === 'confirm' || t === 'evet';
+                    });
+                }
+                if (!btn || btn.offsetParent === null) return JSON.stringify({ok:false});
+                var r = btn.getBoundingClientRect();
+                return JSON.stringify({ok:true, x: r.left + r.width/2, y: r.top + r.height/2});
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js) { sonuc ->
+            val obj = parseJsJson(sonuc)
+            if (obj != null && obj.optBoolean("ok")) {
+                durumGuncelle("$etiket ✅ İşlem onaylandı!")
+                webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
+                handler.postDelayed({ turDevamEdiyor = false }, 1500L)
+            } else if (deneme < 3) {
+                handler.postDelayed({ onayPenceresiniTamamla(deneme + 1, etiket) }, 800L)
+            } else {
+                turDevamEdiyor = false
+            }
+        }
+    }
+
+    private fun captchaKontrolEt() {
+        val js = """
+            (function() {
+                var cap = document.querySelector('#bot_check, .captcha, iframe[src*="captcha"]');
+                return cap ? 'VAR' : 'YOK';
+            })();
+        """.trimIndent()
+
+        webView.evaluateJavascript(js) { sonuc ->
+            if (sonuc.contains("VAR")) {
+                aktifMi = false
+                turDevamEdiyor = false
+                btnBaslat.text = "SİSTEMİ BAŞLAT"
+                btnBaslat.setBackgroundColor(Color.parseColor("#4B7A24"))
+                durumGuncelle("🚨 BOT KORUMASI ÇIKTI! Sistem durduruldu!")
+                arkaPlanServisiniDurdur()
+                runCatching {
+                    ToneGenerator(AudioManager.STREAM_ALARM, 100).startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, 1500)
+                }
+            }
+        }
+    }
+
+    private fun parseJsJson(raw: String?): JSONObject? {
+        if (raw.isNullOrBlank() || raw == "null") return null
+        val temiz = raw.trim('"').replace("\\\"", "\"")
+        return runCatching { JSONObject(temiz) }.getOrNull()
+    }
+
+    private fun kuyruguKaydet(tvKuyruk: TextView) {
+        if (binaKuyrugu.isEmpty()) {
+            tvKuyruk.text = "Sıra boş"
+        } else {
+            tvKuyruk.text = binaKuyrugu.mapIndexed { i, g -> "${i + 1}. ${g.ad} ➔ Sv.${g.hedefSeviye}" }.joinToString("\n")
+        }
+        val data = binaKuyrugu.joinToString(";") { "${it.kod}|${it.ad}|${it.hedefSeviye}" }
+        prefs.edit().putString("bina_kuyruk_v2", data).apply()
+    }
+
+    private fun kuyruguYukle(tvKuyruk: TextView) {
+        binaKuyrugu.clear()
+        val data = prefs.getString("bina_kuyruk_v2", "") ?: ""
+        if (data.isNotEmpty()) {
+            data.split(";").forEach { item ->
+                val p = item.split("|")
+                if (p.size == 3) {
+                    val sv = p[2].toIntOrNull() ?: 0
+                    if (sv > 0) binaKuyrugu.add(BinaGorevi(p[0], p[1], sv))
+                }
+            }
+        }
+        kuyruguKaydet(tvKuyruk)
+    }
+
+    inner class BotJsBridge {
+        @JavascriptInterface
+        fun onBorsaBos(stokBilgisi: String) {
+            handler.post {
+                durumGuncelle("[Borsa] $stokBilgisi")
+                turDevamEdiyor = false
+            }
+        }
+
+        @JavascriptInterface
+        fun onBorsaHedefBulundu(res: String, adet: Int, kur: Int, x: Float, y: Float) {
+            handler.post {
+                if (!aktifMi) {
+                    turDevamEdiyor = false
+                    return@post
+                }
+                durumGuncelle("[Borsa] ⚡ $res ($adet adet | Kur: $kur) çekiliyor!")
+                anindaOnayGozlemcisiKur()
+                webViewGercekDokun(x, y)
+
+                handler.postDelayed({
+                    if (turDevamEdiyor) turDevamEdiyor = false
+                }, 2500L)
+            }
+        }
+
+        @JavascriptInterface
+        fun onBorsaOnayHazir(x: Float, y: Float) {
+            handler.post {
+                if (!aktifMi) return@post
+                durumGuncelle("[Borsa] ✅ Anında onaylandı!")
+                webViewGercekDokun(x, y)
+                handler.postDelayed({ turDevamEdiyor = false }, 900L)
+            }
+        }
+    }
+
+    override fun onBackPressed() {
+        if (webView.canGoBack()) webView.goBack()
+        else super.onBackPressed()
+    }
+}
