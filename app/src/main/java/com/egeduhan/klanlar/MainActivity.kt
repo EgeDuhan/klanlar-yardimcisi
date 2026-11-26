@@ -1108,7 +1108,7 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- 5. AÇIK PENCERE KONTROLLÜ + TABLO/AJAX BORSA ---
+    // --- 5. CONFIRMATION-BOX + JQUERY UYUMLU BORSA ---
     private fun borsaKontrolVeOnayEt() {
         val mevcutUrl = webView.url ?: return
         if (!mevcutUrl.contains("game.php")) {
@@ -1157,33 +1157,25 @@ class MainActivity : Activity() {
                     return r.width > 5 && r.height > 5;
                 }
 
-                // 1. Ekranda açık "Ticaret teklifine bak" onay penceresi varsa ÖNCE ONU ONAYLA!
+                // 1. Ekranda açık "Ticaret teklifine bak" (.confirmation-box / .evt-confirm-btn) varsa ÖNCE ONU TIKLA!
                 function acikPencereyiIsle() {
-                    var kutular = Array.from(document.querySelectorAll('.popup_box_container, .popup_box, .popup_box_content, #premium_exchange_confirm')).filter(gorunurMu);
-                    for (var k = 0; k < kutular.length; k++) {
-                        var adaylar = Array.from(kutular[k].querySelectorAll('button, input, a'));
-                        var onayBtn = adaylar.find(function(el) {
-                            if (!gorunurMu(el)) return false;
-                            var t = (el.innerText || el.value || '').trim().toLowerCase();
-                            return el.classList.contains('evt-confirm-btn') || el.classList.contains('btn-confirm-yes') || t === 'onayla' || t === 'confirm';
-                        });
-                        if (onayBtn) {
-                            if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-                            onayBtn.click();
-                            AndroidBot.onBorsaSonuc(true);
-                            return true;
-                        }
-                        var iptalBtn = adaylar.find(function(el) {
-                            if (!gorunurMu(el)) return false;
-                            var t = (el.innerText || el.value || '').trim().toLowerCase();
-                            return el.classList.contains('evt-cancel-btn') || el.classList.contains('btn-confirm-no') || t.indexOf('iptal') !== -1 || t === 'cancel' || t === 'kapat';
-                        });
-                        if (iptalBtn) {
-                            if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-                            iptalBtn.click();
-                            AndroidBot.onBorsaSonuc(false);
-                            return true;
-                        }
+                    var onayBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-confirm-btn, .confirmation-box .btn-confirm-yes, #confirmation-box .evt-confirm-btn, .popup_box_content .evt-confirm-btn, button.evt-confirm-btn, button.btn-confirm-yes')).find(gorunurMu);
+                    if (onayBtn) {
+                        if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                        var r = onayBtn.getBoundingClientRect();
+                        if (window.jQuery) window.jQuery(onayBtn).trigger('click');
+                        onayBtn.click();
+                        AndroidBot.onBorsaOnayDokun(true, r.left + r.width/2, r.top + r.height/2);
+                        return true;
+                    }
+                    var iptalBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-cancel-btn, .confirmation-box .btn-confirm-no, #confirmation-box .evt-cancel-btn, button.evt-cancel-btn, button.btn-confirm-no')).find(gorunurMu);
+                    if (iptalBtn) {
+                        if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                        var r2 = iptalBtn.getBoundingClientRect();
+                        if (window.jQuery) window.jQuery(iptalBtn).trigger('click');
+                        iptalBtn.click();
+                        AndroidBot.onBorsaOnayDokun(false, r2.left + r2.width/2, r2.top + r2.height/2);
+                        return true;
                     }
                     return false;
                 }
@@ -1222,16 +1214,16 @@ class MainActivity : Activity() {
                         res.rates[r] = ilkSayi(document.getElementById('premium_exchange_rate_' + r));
                     });
 
-                    // Satır başlıklarından (Stok / Kapasite / Oran) yedek okuma
                     Array.from(document.querySelectorAll('#premium_exchange_form tr, table.vis tr')).forEach(function(tr) {
-                        if (!tr.cells || tr.cells.length < 4) return;
-                        var baslik = (tr.cells[0].innerText || '').trim().toLowerCase();
+                        var hucreler = tr.querySelectorAll('td, th');
+                        if (hucreler.length < 4) return;
+                        var baslik = (hucreler[0].innerText || '').trim().toLowerCase();
                         for (var i = 0; i < 3; i++) {
-                            var val = ilkSayi(tr.cells[i + 1]);
+                            var val = ilkSayi(hucreler[i + 1]);
                             if (val > 0) {
-                                if (baslik === 'stok' || baslik === 'stock') res.stock[sirasi[i]] = val;
-                                else if (baslik === 'kapasite' || baslik === 'capacity') res.capacity[sirasi[i]] = val;
-                                else if (baslik === 'oran' || baslik === 'kur' || baslik === 'rate') res.rates[sirasi[i]] = val;
+                                if (baslik.indexOf('stok') !== -1 || baslik.indexOf('stock') !== -1) res.stock[sirasi[i]] = val;
+                                else if (baslik.indexOf('kapasite') !== -1 || baslik.indexOf('capacity') !== -1) res.capacity[sirasi[i]] = val;
+                                else if (baslik.indexOf('oran') !== -1 || baslik.indexOf('kur') !== -1 || baslik.indexOf('rate') !== -1) res.rates[sirasi[i]] = val;
                             }
                         }
                     });
@@ -1256,10 +1248,9 @@ class MainActivity : Activity() {
                     }
                     window.__klanlarOnayObserver = new MutationObserver(function() { kontrol(); });
                     window.__klanlarOnayObserver.observe(document.body, {childList: true, subtree: true, attributes: true});
-                    // Animasyon gecikmesi ihtimaline karşı 120ms, 300ms ve 600ms yedek kontroller
-                    setTimeout(kontrol, 120);
-                    setTimeout(kontrol, 300);
-                    setTimeout(kontrol, 600);
+                    setTimeout(kontrol, 150);
+                    setTimeout(kontrol, 350);
+                    setTimeout(kontrol, 700);
                 }
 
                 function islemiCalistir(veri) {
@@ -1299,30 +1290,50 @@ class MainActivity : Activity() {
                         return;
                     }
 
-                    ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n) {
-                        var el = document.querySelector('input[name="' + n + '"]');
-                        if (el) el.value = '';
-                    });
-
-                    var inpName = (mod === 'sell' ? 'sell_' : 'buy_') + secilen.res;
-                    var inp = document.querySelector('input[name="' + inpName + '"]');
                     var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
-                    if (!inp || !calcBtn) {
+                    if (!calcBtn) {
                         AndroidBot.onBorsaBos('Form bulunamadı');
                         return;
                     }
 
-                    inp.value = secilen.adet;
+                    // Oyun kendi "Lütfen bekleyin..." geri sayımındaysa bekle
+                    var btnText = (calcBtn.value || '').toLowerCase();
+                    if (calcBtn.disabled || calcBtn.classList.contains('btn-disabled') || btnText.indexOf('bekleyin') !== -1) {
+                        AndroidBot.onBorsaBos('Oyun bekleme sayacı: ' + (calcBtn.value || 'bekleniyor'));
+                        return;
+                    }
+
+                    ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n) {
+                        var el = document.querySelector('input[name="' + n + '"]');
+                        if (el) {
+                            el.value = '';
+                            if (window.jQuery) window.jQuery(el).val('').trigger('input').trigger('change');
+                        }
+                    });
+
+                    var inpName = (mod === 'sell' ? 'sell_' : 'buy_') + secilen.res;
+                    var inp = document.querySelector('input[name="' + inpName + '"]');
+                    if (!inp) {
+                        AndroidBot.onBorsaBos('Kutu bulunamadı');
+                        return;
+                    }
+
+                    inp.focus();
+                    inp.value = String(secilen.adet);
+                    if (window.jQuery) {
+                        window.jQuery(inp).val(String(secilen.adet)).trigger('input').trigger('keyup').trigger('change');
+                    }
                     inp.dispatchEvent(new Event('input', {bubbles:true}));
                     inp.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true}));
                     inp.dispatchEvent(new Event('change', {bubbles:true}));
 
-                    calcBtn.disabled = false;
-                    calcBtn.classList.remove('btn-disabled');
-
                     anindaGozlemciBaslat();
                     AndroidBot.onBorsaTetiklendi(secilen.res, secilen.adet, secilen.kur);
-                    calcBtn.click();
+
+                    setTimeout(function() {
+                        if (window.jQuery) window.jQuery(calcBtn).trigger('click');
+                        calcBtn.click();
+                    }, 60);
                 }
 
                 if (typeof TribalWars !== 'undefined' && typeof TribalWars.get === 'function') {
@@ -1371,7 +1382,10 @@ class MainActivity : Activity() {
                 }
                 ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n) {
                     var el = document.querySelector('input[name="' + n + '"]');
-                    if (el) el.value = '';
+                    if (el) {
+                        el.value = '';
+                        if (window.jQuery) window.jQuery(el).val('').trigger('change');
+                    }
                 });
             })();
         """.trimIndent()
@@ -1385,9 +1399,9 @@ class MainActivity : Activity() {
         }
         val js = """
             (function() {
-                var btn = document.querySelector('.popup_box_content .evt-confirm-btn, .popup_box_content .btn-confirm-yes');
+                var btn = document.querySelector('.confirmation-box .evt-confirm-btn, .popup_box_content .evt-confirm-btn, .btn-confirm-yes');
                 if (!btn) {
-                    var adaylar = Array.from(document.querySelectorAll('.popup_box_content button, .popup_box_content input, .popup_box_content a'));
+                    var adaylar = Array.from(document.querySelectorAll('.confirmation-box button, .popup_box_content button, .popup_box_content input, .popup_box_content a'));
                     btn = adaylar.find(function(el) {
                         var t = (el.innerText || el.value || '').trim().toLowerCase();
                         return t === 'onayla' || t === 'confirm' || t === 'evet';
@@ -1506,6 +1520,27 @@ class MainActivity : Activity() {
         }
 
         @JavascriptInterface
+        fun onBorsaOnayDokun(onayMi: Boolean, x: Float, y: Float) {
+            handler.post {
+                if (!aktifMi) return@post
+                if (x >= 0f && y >= 0f) {
+                    webViewGercekDokun(x, y)
+                }
+                if (onayMi) {
+                    durumGuncelle("[Borsa] ✅ Onayla basıldı!")
+                } else {
+                    basarisizKaynak = sonDeneneKaynak
+                    basarisizKaynakZamani = System.currentTimeMillis()
+                    durumGuncelle("[Borsa] ⚠️ Kapıldı, iptal edildi...")
+                }
+                handler.postDelayed({
+                    borsaKutulariniTemizle()
+                    borsaIslemde = false
+                }, 220L)
+            }
+        }
+
+        @JavascriptInterface
         fun onBorsaSonuc(basariliMi: Boolean) {
             handler.post {
                 if (basariliMi) {
@@ -1518,7 +1553,7 @@ class MainActivity : Activity() {
                 handler.postDelayed({
                     borsaKutulariniTemizle()
                     borsaIslemde = false
-                }, 150L)
+                }, 180L)
             }
         }
     }
