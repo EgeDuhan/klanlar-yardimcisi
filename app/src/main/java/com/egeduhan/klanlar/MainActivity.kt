@@ -794,6 +794,11 @@ class MainActivity : Activity() {
                         return;
                     }
 
+                    ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n) {
+                        var el = document.querySelector('input[name="' + n + '"]');
+                        if (el) el.value = '';
+                    });
+
                     var inpName = (mod === 'sell' ? 'sell_' : 'buy_') + secilen.res;
                     var inp = document.querySelector('input[name="' + inpName + '"]');
                     var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
@@ -819,23 +824,43 @@ class MainActivity : Activity() {
         webView.evaluateJavascript(js, null)
     }
 
+    private fun borsaKutulariniTemizle() {
+        val js = """
+            (function() {
+                ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n) {
+                    var el = document.querySelector('input[name="' + n + '"]');
+                    if (el) el.value = '';
+                });
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js, null)
+    }
+
     private fun anindaOnayGozlemcisiKur() {
         val js = """
             (function() {
                 if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
                 function bulVeBildir() {
-                    var btn = document.querySelector('.evt-confirm-btn, .btn-confirm-yes');
-                    if (!btn) {
-                        var adaylar = Array.from(document.querySelectorAll('#premium_exchange_confirm button, #premium_exchange_confirm input, #premium_exchange_confirm a, .popup_box_content button, .popup_box_content input, .popup_box_content a'));
-                        btn = adaylar.find(function(el) {
-                            var t = (el.innerText || el.value || '').trim().toLowerCase();
-                            return t === 'onayla' || t === 'confirm';
-                        });
-                    }
-                    if (btn && btn.offsetParent !== null) {
+                    var adaylar = Array.from(document.querySelectorAll('#premium_exchange_confirm button, #premium_exchange_confirm input, #premium_exchange_confirm a, .popup_box_content button, .popup_box_content input, .popup_box_content a'));
+                    var onayBtn = document.querySelector('.evt-confirm-btn, .btn-confirm-yes') || adaylar.find(function(el) {
+                        var t = (el.innerText || el.value || '').trim().toLowerCase();
+                        return (t === 'onayla' || t === 'confirm') && el.offsetParent !== null;
+                    });
+                    if (onayBtn && onayBtn.offsetParent !== null) {
                         if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-                        var r = btn.getBoundingClientRect();
-                        AndroidBot.onBorsaOnayHazir(r.left + r.width/2, r.top + r.height/2);
+                        var r = onayBtn.getBoundingClientRect();
+                        AndroidBot.onBorsaPencereHazir(true, r.left + r.width/2, r.top + r.height/2);
+                        return true;
+                    }
+
+                    var iptalBtn = document.querySelector('.evt-cancel-btn, .btn-confirm-no') || adaylar.find(function(el) {
+                        var t = (el.innerText || el.value || '').trim().toLowerCase();
+                        return (t.indexOf('iptal') !== -1 || t === 'cancel' || t === 'kapat') && el.offsetParent !== null;
+                    });
+                    if (iptalBtn && iptalBtn.offsetParent !== null) {
+                        if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                        var r2 = iptalBtn.getBoundingClientRect();
+                        AndroidBot.onBorsaPencereHazir(false, r2.left + r2.width/2, r2.top + r2.height/2);
                         return true;
                     }
                     return false;
@@ -959,18 +984,28 @@ class MainActivity : Activity() {
                 webViewGercekDokun(x, y)
 
                 handler.postDelayed({
-                    if (turDevamEdiyor) turDevamEdiyor = false
-                }, 2500L)
+                    if (turDevamEdiyor) {
+                        borsaKutulariniTemizle()
+                        turDevamEdiyor = false
+                    }
+                }, 2200L)
             }
         }
 
         @JavascriptInterface
-        fun onBorsaOnayHazir(x: Float, y: Float) {
+        fun onBorsaPencereHazir(onayMi: Boolean, x: Float, y: Float) {
             handler.post {
                 if (!aktifMi) return@post
-                durumGuncelle("[Borsa] ✅ Anında onaylandı!")
+                if (onayMi) {
+                    durumGuncelle("[Borsa] ✅ Anında onaylandı!")
+                } else {
+                    durumGuncelle("[Borsa] ⚠️ Stok tükendi, pencere kapatıldı")
+                }
                 webViewGercekDokun(x, y)
-                handler.postDelayed({ turDevamEdiyor = false }, 900L)
+                handler.postDelayed({
+                    borsaKutulariniTemizle()
+                    turDevamEdiyor = false
+                }, 650L)
             }
         }
     }
