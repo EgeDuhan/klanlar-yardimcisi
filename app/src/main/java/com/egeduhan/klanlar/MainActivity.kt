@@ -68,22 +68,17 @@ class MainActivity : Activity() {
 
     private val logListesi = ArrayDeque<String>()
 
-    // 3 Bina İçin Ayrı Birim Listeleri (Okçusuz Dünya)
     private val kislaBirimleri = listOf("spear" to "Mızrakçı", "sword" to "Kılıç ustası", "axe" to "Baltacı")
     private val ahirBirimleri = listOf("spy" to "Casus", "light" to "Hafif atlı", "heavy" to "Ağır atlı")
     private val atolyeBirimleri = listOf("ram" to "Şahmerdan", "catapult" to "Mancınık")
 
     private var kislaIndex = 0
-    private var ahirIndex = 1 // Varsayılan: Hafif atlı
+    private var ahirIndex = 1
     private var atolyeIndex = 0
 
     private val tumYagmaBirimleri = listOf(
-        "spear" to "Mızrakçı",
-        "sword" to "Kılıç ustası",
-        "axe" to "Baltacı",
-        "spy" to "Casus",
-        "light" to "Hafif atlı",
-        "heavy" to "Ağır atlı"
+        "spear" to "Mızrakçı", "sword" to "Kılıç ustası", "axe" to "Baltacı",
+        "spy" to "Casus", "light" to "Hafif atlı", "heavy" to "Ağır atlı"
     )
     private var haritaYagmaBirimIndex = 4
     private val barbarKoordinatlari = mutableListOf<String>()
@@ -140,7 +135,7 @@ class MainActivity : Activity() {
         btnBaslat.background = yuvarlakKutu("#2E7D32", 18f)
         findViewById<Button>(R.id.btnMinimize).background = yuvarlakKutu("#2E2E3A", 14f)
 
-        val koyuButonlar = listOf(
+        listOf(
             R.id.btnSayfaYenile, R.id.btnKoyGenel, R.id.btnPilIzni,
             R.id.btnKislaOnceki, R.id.btnKislaSonraki,
             R.id.btnAhirOnceki, R.id.btnAhirSonraki,
@@ -150,22 +145,16 @@ class MainActivity : Activity() {
             R.id.btnBinaOnceki, R.id.btnBinaSonraki,
             R.id.btnBinaSirayaEkle, R.id.btnBinaSirasiTemizle,
             R.id.btnBorsaMod
-        )
-        koyuButonlar.forEach { id ->
-            findViewById<Button>(id).background = yuvarlakKutu("#2D2D3B", 12f, "#3E3E52")
-        }
+        ).forEach { findViewById<Button>(it).background = yuvarlakKutu("#2D2D3B", 12f, "#3E3E52") }
 
-        val kutular = listOf(
+        listOf(
             R.id.etAskerDakika, R.id.etKislaAdet, R.id.etAhirAdet, R.id.etAtolyeAdet,
             R.id.etKorumaOdun, R.id.etKorumaKil, R.id.etKorumaDemir,
             R.id.etKorumaNufus, R.id.etKuyrukSinir,
             R.id.etYagmaSayi, R.id.etYagmaDakika, R.id.etHaritaMesafe, R.id.etHaritaAskerAdet,
             R.id.etBinaDakika, R.id.etBinaHedefSeviye, R.id.etTemizlikDakika,
             R.id.etBorsaMiktar, R.id.etBorsaMinStok, R.id.etBorsaKurLimit, R.id.etBorsaSaniye
-        )
-        kutular.forEach { id ->
-            findViewById<EditText>(id).background = yuvarlakKutu("#14141A", 10f, "#3A3A4A")
-        }
+        ).forEach { findViewById<EditText>(it).background = yuvarlakKutu("#14141A", 10f, "#3A3A4A") }
     }
 
     private fun bildirimIzniIste() {
@@ -242,11 +231,7 @@ class MainActivity : Activity() {
         var dY = 0f
         dragHeader.setOnTouchListener { _, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    dX = mainPanel.x - event.rawX
-                    dY = mainPanel.y - event.rawY
-                    true
-                }
+                MotionEvent.ACTION_DOWN -> { dX = mainPanel.x - event.rawX; dY = mainPanel.y - event.rawY; true }
                 MotionEvent.ACTION_MOVE -> {
                     mainPanel.x = (event.rawX + dX).coerceIn(0f, (webView.width - mainPanel.width).coerceAtLeast(0).toFloat())
                     mainPanel.y = (event.rawY + dY).coerceIn(0f, (webView.height - mainPanel.height).coerceAtLeast(0).toFloat())
@@ -256,15 +241,8 @@ class MainActivity : Activity() {
             }
         }
 
-        btnMinimize.setOnClickListener {
-            mainPanel.visibility = View.GONE
-            btnFloatingIcon.visibility = View.VISIBLE
-            webView.requestFocus()
-        }
-        btnFloatingIcon.setOnClickListener {
-            btnFloatingIcon.visibility = View.GONE
-            mainPanel.visibility = View.VISIBLE
-        }
+        btnMinimize.setOnClickListener { mainPanel.visibility = View.GONE; btnFloatingIcon.visibility = View.VISIBLE; webView.requestFocus() }
+        btnFloatingIcon.setOnClickListener { btnFloatingIcon.visibility = View.GONE; mainPanel.visibility = View.VISIBLE }
 
         findViewById<Button>(R.id.btnPilIzni).setOnClickListener { pilKisitlamasiniKaldir() }
         findViewById<Button>(R.id.btnSayfaYenile).setOnClickListener { webView.reload() }
@@ -274,88 +252,44 @@ class MainActivity : Activity() {
             else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
 
-        // Kışla / Ahır / Atölye Seçicileri
         val tvKisla = findViewById<TextView>(R.id.tvKislaBirim)
         val tvAhir = findViewById<TextView>(R.id.tvAhirBirim)
         val tvAtolye = findViewById<TextView>(R.id.tvAtolyeBirim)
 
-        findViewById<Button>(R.id.btnKislaOnceki).setOnClickListener {
-            kislaIndex = (kislaIndex - 1 + kislaBirimleri.size) % kislaBirimleri.size
-            tvKisla.text = kislaBirimleri[kislaIndex].second
-        }
-        findViewById<Button>(R.id.btnKislaSonraki).setOnClickListener {
-            kislaIndex = (kislaIndex + 1) % kislaBirimleri.size
-            tvKisla.text = kislaBirimleri[kislaIndex].second
-        }
-        findViewById<Button>(R.id.btnAhirOnceki).setOnClickListener {
-            ahirIndex = (ahirIndex - 1 + ahirBirimleri.size) % ahirBirimleri.size
-            tvAhir.text = ahirBirimleri[ahirIndex].second
-        }
-        findViewById<Button>(R.id.btnAhirSonraki).setOnClickListener {
-            ahirIndex = (ahirIndex + 1) % ahirBirimleri.size
-            tvAhir.text = ahirBirimleri[ahirIndex].second
-        }
-        findViewById<Button>(R.id.btnAtolyeOnceki).setOnClickListener {
-            atolyeIndex = (atolyeIndex - 1 + atolyeBirimleri.size) % atolyeBirimleri.size
-            tvAtolye.text = atolyeBirimleri[atolyeIndex].second
-        }
-        findViewById<Button>(R.id.btnAtolyeSonraki).setOnClickListener {
-            atolyeIndex = (atolyeIndex + 1) % atolyeBirimleri.size
-            tvAtolye.text = atolyeBirimleri[atolyeIndex].second
-        }
+        findViewById<Button>(R.id.btnKislaOnceki).setOnClickListener { kislaIndex = (kislaIndex - 1 + kislaBirimleri.size) % kislaBirimleri.size; tvKisla.text = kislaBirimleri[kislaIndex].second }
+        findViewById<Button>(R.id.btnKislaSonraki).setOnClickListener { kislaIndex = (kislaIndex + 1) % kislaBirimleri.size; tvKisla.text = kislaBirimleri[kislaIndex].second }
+        findViewById<Button>(R.id.btnAhirOnceki).setOnClickListener { ahirIndex = (ahirIndex - 1 + ahirBirimleri.size) % ahirBirimleri.size; tvAhir.text = ahirBirimleri[ahirIndex].second }
+        findViewById<Button>(R.id.btnAhirSonraki).setOnClickListener { ahirIndex = (ahirIndex + 1) % ahirBirimleri.size; tvAhir.text = ahirBirimleri[ahirIndex].second }
+        findViewById<Button>(R.id.btnAtolyeOnceki).setOnClickListener { atolyeIndex = (atolyeIndex - 1 + atolyeBirimleri.size) % atolyeBirimleri.size; tvAtolye.text = atolyeBirimleri[atolyeIndex].second }
+        findViewById<Button>(R.id.btnAtolyeSonraki).setOnClickListener { atolyeIndex = (atolyeIndex + 1) % atolyeBirimleri.size; tvAtolye.text = atolyeBirimleri[atolyeIndex].second }
 
-        // Yağma & Harita Barbar
         val btnYagmaSablon = findViewById<Button>(R.id.btnYagmaSablon)
-        btnYagmaSablon.setOnClickListener {
-            yagmaSablonu = if (yagmaSablonu == "A") "B" else "A"
-            btnYagmaSablon.text = yagmaSablonu
-        }
+        btnYagmaSablon.setOnClickListener { yagmaSablonu = if (yagmaSablonu == "A") "B" else "A"; btnYagmaSablon.text = yagmaSablonu }
         val tvHaritaBirim = findViewById<TextView>(R.id.tvHaritaBirim)
         findViewById<Button>(R.id.btnHaritaTara).setOnClickListener { haritadanBarbarlariTara() }
-        findViewById<Button>(R.id.btnHaritaBirimOnceki).setOnClickListener {
-            haritaYagmaBirimIndex = (haritaYagmaBirimIndex - 1 + tumYagmaBirimleri.size) % tumYagmaBirimleri.size
-            tvHaritaBirim.text = tumYagmaBirimleri[haritaYagmaBirimIndex].second
-        }
-        findViewById<Button>(R.id.btnHaritaBirimSonraki).setOnClickListener {
-            haritaYagmaBirimIndex = (haritaYagmaBirimIndex + 1) % tumYagmaBirimleri.size
-            tvHaritaBirim.text = tumYagmaBirimleri[haritaYagmaBirimIndex].second
-        }
+        findViewById<Button>(R.id.btnHaritaBirimOnceki).setOnClickListener { haritaYagmaBirimIndex = (haritaYagmaBirimIndex - 1 + tumYagmaBirimleri.size) % tumYagmaBirimleri.size; tvHaritaBirim.text = tumYagmaBirimleri[haritaYagmaBirimIndex].second }
+        findViewById<Button>(R.id.btnHaritaBirimSonraki).setOnClickListener { haritaYagmaBirimIndex = (haritaYagmaBirimIndex + 1) % tumYagmaBirimleri.size; tvHaritaBirim.text = tumYagmaBirimleri[haritaYagmaBirimIndex].second }
         barbarListesiniYukle()
 
-        // Bina
         val tvSeciliBinaAdi = findViewById<TextView>(R.id.tvSeciliBinaAdi)
         val etBinaHedefSeviye = findViewById<EditText>(R.id.etBinaHedefSeviye)
         val tvBinaKuyrugu = findViewById<TextView>(R.id.tvBinaKuyrugu)
         tvSeciliBinaAdi.text = tumBinalar[seciliBinaIndex].second
         kuyruguYukle(tvBinaKuyrugu)
 
-        findViewById<Button>(R.id.btnBinaOnceki).setOnClickListener {
-            seciliBinaIndex = (seciliBinaIndex - 1 + tumBinalar.size) % tumBinalar.size
-            tvSeciliBinaAdi.text = tumBinalar[seciliBinaIndex].second
-        }
-        findViewById<Button>(R.id.btnBinaSonraki).setOnClickListener {
-            seciliBinaIndex = (seciliBinaIndex + 1) % tumBinalar.size
-            tvSeciliBinaAdi.text = tumBinalar[seciliBinaIndex].second
-        }
+        findViewById<Button>(R.id.btnBinaOnceki).setOnClickListener { seciliBinaIndex = (seciliBinaIndex - 1 + tumBinalar.size) % tumBinalar.size; tvSeciliBinaAdi.text = tumBinalar[seciliBinaIndex].second }
+        findViewById<Button>(R.id.btnBinaSonraki).setOnClickListener { seciliBinaIndex = (seciliBinaIndex + 1) % tumBinalar.size; tvSeciliBinaAdi.text = tumBinalar[seciliBinaIndex].second }
         findViewById<Button>(R.id.btnBinaSirayaEkle).setOnClickListener {
             val (kod, ad) = tumBinalar[seciliBinaIndex]
             val sv = (etBinaHedefSeviye.text.toString().toIntOrNull() ?: 1).coerceIn(1, 30)
             binaKuyrugu.add(BinaGorevi(kod, ad, sv))
             kuyruguKaydet(tvBinaKuyrugu)
         }
-        findViewById<Button>(R.id.btnBinaSirasiTemizle).setOnClickListener {
-            binaKuyrugu.clear()
-            kuyruguKaydet(tvBinaKuyrugu)
-        }
+        findViewById<Button>(R.id.btnBinaSirasiTemizle).setOnClickListener { binaKuyrugu.clear(); kuyruguKaydet(tvBinaKuyrugu) }
 
-        // Borsa Mod
         val btnBorsaMod = findViewById<Button>(R.id.btnBorsaMod)
-        btnBorsaMod.setOnClickListener {
-            borsaSatisModu = !borsaSatisModu
-            btnBorsaMod.text = if (borsaSatisModu) "MOD: SAT (PP)" else "MOD: AL (HAM)"
-        }
+        btnBorsaMod.setOnClickListener { borsaSatisModu = !borsaSatisModu; btnBorsaMod.text = if (borsaSatisModu) "MOD: SAT (PP)" else "MOD: AL (HAM)" }
 
-        // Başlat / Durdur
         btnBaslat.setOnClickListener {
             ayarlariKaydet()
             aktifMi = !aktifMi
@@ -365,15 +299,9 @@ class MainActivity : Activity() {
                 btnFloatingIcon.background = yuvarlakKutu("#E62E7D32", 100f, "#F5C563")
                 durumGuncelle("Otomasyon başlatıldı", logEkle = true)
                 arkaPlanServisiniBaslat()
-                sonAskerZamani = 0L
-                sonYagmaZamani = 0L
-                sonBinaZamani = 0L
-                sonTemizlikZamani = 0L
-                sonBorsaZamani = 0L
-                borsaHizSiniriBitisZamani = 0L
-                basarisizKaynak = ""
-                turDevamEdiyor = false
-                borsaIslemde = false
+                sonAskerZamani = 0L; sonYagmaZamani = 0L; sonBinaZamani = 0L; sonTemizlikZamani = 0L; sonBorsaZamani = 0L
+                borsaHizSiniriBitisZamani = 0L; basarisizKaynak = ""
+                turDevamEdiyor = false; borsaIslemde = false
                 anaDonguyuBaslat(tvBinaKuyrugu)
             } else {
                 btnBaslat.text = "SİSTEMİ BAŞLAT"
@@ -381,14 +309,12 @@ class MainActivity : Activity() {
                 btnFloatingIcon.background = yuvarlakKutu("#E6B71C1C", 100f, "#FFFFFF")
                 durumGuncelle("Durduruldu", logEkle = true)
                 arkaPlanServisiniDurdur()
-                turDevamEdiyor = false
-                borsaIslemde = false
+                turDevamEdiyor = false; borsaIslemde = false
                 handler.removeCallbacksAndMessages(null)
             }
         }
     }
 
-    // --- TÜM AYARLARI OTOMATİK KAYDET / YÜKLE ---
     private fun ayarlariKaydet() {
         prefs.edit()
             .putBoolean("saldiri_alarm", findViewById<Switch>(R.id.cbSaldiriAlarmi).isChecked)
@@ -420,6 +346,7 @@ class MainActivity : Activity() {
             .putBoolean("bina_pp20", findViewById<Switch>(R.id.cbBinaPremium20).isChecked)
             .putString("bina_dk", findViewById<EditText>(R.id.etBinaDakika).text.toString())
             .putBoolean("temiz_aktif", findViewById<Switch>(R.id.cbTemizlikAktif).isChecked)
+            .putBoolean("temiz_pp", findViewById<Switch>(R.id.cbTemizPremium).isChecked)
             .putString("temiz_dk", findViewById<EditText>(R.id.etTemizlikDakika).text.toString())
             .putBoolean("borsa_aktif", findViewById<Switch>(R.id.cbBorsaAktif).isChecked)
             .putBoolean("borsa_satis", borsaSatisModu)
@@ -473,6 +400,7 @@ class MainActivity : Activity() {
         findViewById<EditText>(R.id.etBinaDakika).setText(prefs.getString("bina_dk", "4"))
 
         findViewById<Switch>(R.id.cbTemizlikAktif).isChecked = prefs.getBoolean("temiz_aktif", false)
+        findViewById<Switch>(R.id.cbTemizPremium).isChecked = prefs.getBoolean("temiz_pp", false)
         findViewById<EditText>(R.id.etTemizlikDakika).setText(prefs.getString("temiz_dk", "20"))
 
         findViewById<Switch>(R.id.cbBorsaAktif).isChecked = prefs.getBoolean("borsa_aktif", false)
@@ -507,18 +435,14 @@ class MainActivity : Activity() {
                 if (!aktifMi) return
                 val simdi = System.currentTimeMillis()
 
-                // Gelen saldırı kontrolü (10 sn'de bir)
                 if (findViewById<Switch>(R.id.cbSaldiriAlarmi).isChecked && simdi - sonSaldiriKontrolZamani >= 10_000L) {
                     sonSaldiriKontrolZamani = simdi
                     gelenSaldiriKontrolEt()
                 }
 
                 val borsaAktif = findViewById<Switch>(R.id.cbBorsaAktif).isChecked
-                if (borsaIslemde && (simdi - borsaIslemBaslangic > 1800L)) {
-                    borsaIslemde = false
-                }
+                if (borsaIslemde && (simdi - borsaIslemBaslangic > 1800L)) borsaIslemde = false
 
-                // 1) BORSA
                 if (borsaAktif && !turDevamEdiyor && !borsaIslemde) {
                     if (simdi < borsaHizSiniriBitisZamani) {
                         val kalanSn = ((borsaHizSiniriBitisZamani - simdi) / 1000L) + 1
@@ -533,7 +457,6 @@ class MainActivity : Activity() {
                     }
                 }
 
-                // 2) DİĞER MODÜLLER
                 if (!turDevamEdiyor && !borsaIslemde) {
                     val askerAktif = findViewById<Switch>(R.id.cbAskerAktif).isChecked
                     val yagmaAktif = findViewById<Switch>(R.id.cbYagmaAktif).isChecked
@@ -547,26 +470,11 @@ class MainActivity : Activity() {
                     val temizlikSure = (findViewById<EditText>(R.id.etTemizlikDakika).text.toString().toLongOrNull() ?: 20L).coerceAtLeast(1L) * 60_000L
 
                     when {
-                        askerAktif && (simdi - sonAskerZamani >= askerSure) -> {
-                            sonAskerZamani = simdi
-                            cokluAskerTurunuBaslat()
-                        }
-                        haritaYagmaAktif && barbarKoordinatlari.isNotEmpty() && (simdi - sonYagmaZamani >= yagmaSure) -> {
-                            sonYagmaZamani = simdi
-                            haritaBarbarYagmaBaslat()
-                        }
-                        yagmaAktif && (simdi - sonYagmaZamani >= yagmaSure) -> {
-                            sonYagmaZamani = simdi
-                            yagmaTurunuCalistir()
-                        }
-                        binaAktif && binaKuyrugu.isNotEmpty() && (simdi - sonBinaZamani >= binaSure) -> {
-                            sonBinaZamani = simdi
-                            binaTurunuCalistir(tvBinaKuyrugu)
-                        }
-                        temizlikAktif && (simdi - sonTemizlikZamani >= temizlikSure) -> {
-                            sonTemizlikZamani = simdi
-                            temizlikTurunuCalistir()
-                        }
+                        askerAktif && (simdi - sonAskerZamani >= askerSure) -> { sonAskerZamani = simdi; cokluAskerTurunuBaslat() }
+                        haritaYagmaAktif && barbarKoordinatlari.isNotEmpty() && (simdi - sonYagmaZamani >= yagmaSure) -> { sonYagmaZamani = simdi; haritaBarbarYagmaBaslat() }
+                        yagmaAktif && (simdi - sonYagmaZamani >= yagmaSure) -> { sonYagmaZamani = simdi; yagmaTurunuCalistir() }
+                        binaAktif && binaKuyrugu.isNotEmpty() && (simdi - sonBinaZamani >= binaSure) -> { sonBinaZamani = simdi; binaTurunuCalistir(tvBinaKuyrugu) }
+                        temizlikAktif && (simdi - sonTemizlikZamani >= temizlikSure) -> { sonTemizlikZamani = simdi; temizlikTurunuCalistir() }
                     }
                 }
                 handler.postDelayed(this, 180L)
@@ -575,16 +483,13 @@ class MainActivity : Activity() {
         handler.postDelayed(dongu, 200L)
     }
 
-    // --- GELEN SALDIRI ALARMI ---
     private fun gelenSaldiriKontrolEt() {
         val js = "(function(){ var el = document.getElementById('incomings_amount'); return el ? (parseInt(el.innerText.trim(),10)||0) : 0; })();"
         webView.evaluateJavascript(js) { sonuc ->
             val sayi = sonuc?.trim('"')?.toIntOrNull() ?: 0
             if (sayi > bilinenGelenSaldiri) {
                 durumGuncelle("🚨 GELEN SALDIRI TESPİT EDİLDİ! ($sayi saldırı)", logEkle = true)
-                runCatching {
-                    ToneGenerator(AudioManager.STREAM_ALARM, 100).startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1800)
-                }
+                runCatching { ToneGenerator(AudioManager.STREAM_ALARM, 100).startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1800) }
             }
             bilinenGelenSaldiri = sayi
         }
@@ -595,7 +500,6 @@ class MainActivity : Activity() {
 
     private fun cokluAskerTurunuBaslat() {
         val gorevler = mutableListOf<AskerGorevi>()
-
         if (findViewById<Switch>(R.id.cbKislaAktif).isChecked) {
             val (kod, ad) = kislaBirimleri[kislaIndex]
             val adet = (findViewById<EditText>(R.id.etKislaAdet).text.toString().toIntOrNull() ?: 5).coerceIn(1, 500)
@@ -611,19 +515,13 @@ class MainActivity : Activity() {
             val adet = (findViewById<EditText>(R.id.etAtolyeAdet).text.toString().toIntOrNull() ?: 2).coerceIn(1, 500)
             gorevler.add(AskerGorevi("garage", "Atölye", kod, ad, adet))
         }
-
         if (gorevler.isEmpty()) return
-
         turDevamEdiyor = true
         siradakiAskerGoreviniYap(gorevler, 0)
     }
 
     private fun siradakiAskerGoreviniYap(gorevler: List<AskerGorevi>, index: Int) {
-        if (!aktifMi || index >= gorevler.size) {
-            turDevamEdiyor = false
-            return
-        }
-
+        if (!aktifMi || index >= gorevler.size) { turDevamEdiyor = false; return }
         val g = gorevler[index]
         val korumaOdun = findViewById<EditText>(R.id.etKorumaOdun).text.toString().toIntOrNull() ?: 0
         val korumaKil = findViewById<EditText>(R.id.etKorumaKil).text.toString().toIntOrNull() ?: 0
@@ -632,56 +530,40 @@ class MainActivity : Activity() {
         val maxKuyruk = (findViewById<EditText>(R.id.etKuyrukSinir).text.toString().toIntOrNull() ?: 5).coerceAtLeast(1)
 
         durumGuncelle("[Asker] ${g.binaAd} açılıyor (${g.birimAd})...")
-        if (!ekranaGit(g.ekran)) {
-            turDevamEdiyor = false
-            return
-        }
+        if (!ekranaGit(g.ekran)) { turDevamEdiyor = false; return }
 
         handler.postDelayed({
             if (!aktifMi) return@postDelayed
             val js = """
                 (function() {
                     var maliyetler = {
-                        spear:    {w:50,  s:30,  i:10,  p:1},
-                        sword:    {w:30,  s:30,  i:70,  p:1},
-                        axe:      {w:60,  s:30,  i:40,  p:1},
-                        spy:      {w:50,  s:50,  i:20,  p:2},
-                        light:    {w:125, s:100, i:250, p:4},
-                        heavy:    {w:200, s:150, i:600, p:6},
-                        ram:      {w:300, s:200, i:200, p:5},
-                        catapult: {w:320, s:400, i:100, p:8}
+                        spear:{w:50,s:30,i:10,p:1}, sword:{w:30,s:30,i:70,p:1}, axe:{w:60,s:30,i:40,p:1},
+                        spy:{w:50,s:50,i:20,p:2}, light:{w:125,s:100,i:250,p:4}, heavy:{w:200,s:150,i:600,p:6},
+                        ram:{w:300,s:200,i:200,p:5}, catapult:{w:320,s:400,i:100,p:8}
                     };
                     var m = maliyetler['${g.birimKod}'];
                     var inp = document.querySelector('input[name="${g.birimKod}"]');
                     var btn = document.querySelector('input.btn-recruit');
                     if (!m || !inp || !btn) return JSON.stringify({ok:false, neden:'bina_yok'});
 
-                    // Kuyruk sınırı kontrolü
                     var kuyruk = document.querySelectorAll('.trainqueue_wrap a.btn-cancel, #trainqueue_wrap_${g.ekran} a.btn-cancel').length;
                     if (kuyruk >= $maxKuyruk) return JSON.stringify({ok:false, neden:'kuyruk_dolu', kuyruk:kuyruk});
 
-                    // Depo ve Nüfus koruması hesabı
                     var wood = parseInt((document.getElementById('wood') || {}).innerText || '0', 10) || 0;
                     var stone = parseInt((document.getElementById('stone') || {}).innerText || '0', 10) || 0;
                     var iron = parseInt((document.getElementById('iron') || {}).innerText || '0', 10) || 0;
                     var popCur = parseInt((document.getElementById('pop_current_label') || {}).innerText || '0', 10) || 0;
                     var popMax = parseInt((document.getElementById('pop_max_label') || {}).innerText || '0', 10) || 0;
 
-                    var harcanabilirW = Math.max(0, wood - $korumaOdun);
-                    var harcanabilirS = Math.max(0, stone - $korumaKil);
-                    var harcanabilirI = Math.max(0, iron - $korumaDemir);
-                    var harcanabilirP = Math.max(0, (popMax - popCur) - $korumaNufus);
-
-                    var maxW = Math.floor(harcanabilirW / m.w);
-                    var maxS = Math.floor(harcanabilirS / m.s);
-                    var maxI = Math.floor(harcanabilirI / m.i);
-                    var maxP = Math.floor(harcanabilirP / m.p);
+                    var maxW = Math.floor(Math.max(0, wood - $korumaOdun) / m.w);
+                    var maxS = Math.floor(Math.max(0, stone - $korumaKil) / m.s);
+                    var maxI = Math.floor(Math.max(0, iron - $korumaDemir) / m.i);
+                    var maxP = Math.floor(Math.max(0, (popMax - popCur) - $korumaNufus) / m.p);
 
                     var basilacak = Math.min(${g.adet}, maxW, maxS, maxI, maxP);
                     if (basilacak <= 0) return JSON.stringify({ok:false, neden:'koruma_limit'});
 
-                    inp.focus();
-                    inp.value = String(basilacak);
+                    inp.focus(); inp.value = String(basilacak);
                     inp.dispatchEvent(new Event('input', {bubbles:true}));
                     inp.dispatchEvent(new Event('change', {bubbles:true}));
                     btn.scrollIntoView({block:'center'});
@@ -689,12 +571,10 @@ class MainActivity : Activity() {
                     return JSON.stringify({ok:true, adet:basilacak, x: r.left + r.width/2, y: r.top + r.height/2});
                 })();
             """.trimIndent()
-
             webView.evaluateJavascript(js) { sonuc ->
                 val obj = parseJsJson(sonuc)
                 if (obj != null && obj.optBoolean("ok")) {
-                    val basilacak = obj.optInt("adet")
-                    durumGuncelle("[Asker] ⚔️ ${g.binaAd}: $basilacak ${g.birimAd} basılıyor", logEkle = true)
+                    durumGuncelle("[Asker] ⚔️ ${g.binaAd}: ${obj.optInt("adet")} ${g.birimAd} basılıyor", logEkle = true)
                     handler.postDelayed({
                         webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                         handler.postDelayed({ siradakiAskerGoreviniYap(gorevler, index + 1) }, 2000L)
@@ -712,25 +592,19 @@ class MainActivity : Activity() {
         }, 2800L)
     }
 
-    // --- HARİTA BARBAR TARAMA & YAĞMA ---
+    // --- 2. HARİTA BARBAR TARAMA & YAĞMA ---
     private fun haritadanBarbarlariTara() {
         val mevcutUrl = webView.url ?: ""
-        if (!mevcutUrl.contains("screen=map")) {
-            durumGuncelle("[Harita] Harita açılıyor, yüklendikten sonra tekrar bas!")
-            ekranaGit("map")
-            return
-        }
+        if (!mevcutUrl.contains("screen=map")) { durumGuncelle("[Harita] Harita açılıyor, tekrar bas!"); ekranaGit("map"); return }
         val maxMesafe = (findViewById<EditText>(R.id.etHaritaMesafe).text.toString().toDoubleOrNull() ?: 12.0).coerceIn(1.0, 100.0)
         val js = """
             (function() {
                 if (typeof TWMap === 'undefined' || !TWMap.villages || typeof game_data === 'undefined') return JSON.stringify({ok:false});
-                var myX = parseInt(game_data.village.x, 10), myY = parseInt(game_data.village.y, 10);
-                var bulunanlar = [];
+                var myX = parseInt(game_data.village.x, 10), myY = parseInt(game_data.village.y, 10), bulunanlar = [];
                 Object.keys(TWMap.villages).forEach(function(key) {
                     var v = TWMap.villages[key];
                     if (!v || !(v.owner === 0 || v.owner === '0' || v.owner === false || v.owner === null)) return;
-                    var xy = parseInt(v.xy || key, 10);
-                    if (isNaN(xy)) return;
+                    var xy = parseInt(v.xy || key, 10); if (isNaN(xy)) return;
                     var vx = Math.floor(xy / 1000), vy = xy % 1000;
                     if (vx === myX && vy === myY) return;
                     var dist = Math.hypot(vx - myX, vy - myY);
@@ -739,50 +613,36 @@ class MainActivity : Activity() {
                 bulunanlar.sort(function(a, b) { return a.dist - b.dist; });
                 var tekil = [], gorulen = {};
                 bulunanlar.forEach(function(item) { if (!gorulen[item.coord]) { gorulen[item.coord] = true; tekil.push(item.coord); } });
-                return JSON.stringify({ok:true, merkez: myX + '|' + myY, liste: tekil});
+                return JSON.stringify({ok:true, liste: tekil});
             })();
         """.trimIndent()
-
         webView.evaluateJavascript(js) { sonuc ->
             val obj = parseJsJson(sonuc)
             if (obj != null && obj.optBoolean("ok")) {
                 val arr: JSONArray = obj.optJSONArray("liste") ?: JSONArray()
                 barbarKoordinatlari.clear()
                 for (i in 0 until arr.length()) barbarKoordinatlari.add(arr.getString(i))
-                barbarSiraIndex = 0
-                barbarListesiniKaydet()
+                barbarSiraIndex = 0; barbarListesiniKaydet()
                 durumGuncelle("[Harita] ✅ ${barbarKoordinatlari.size} barbar kaydedildi!", logEkle = true)
-            } else {
-                durumGuncelle("[Harita] ⚠️ Harita verisi okunamadı")
-            }
+            } else durumGuncelle("[Harita] ⚠️ Harita verisi okunamadı")
         }
     }
 
     private fun haritaBarbarYagmaBaslat() {
         if (barbarKoordinatlari.isEmpty()) return
-        turDevamEdiyor = true
-        haritaSiradakiBarbaraSaldir()
+        turDevamEdiyor = true; haritaSiradakiBarbaraSaldir()
     }
 
     private fun haritaSiradakiBarbaraSaldir() {
-        if (!aktifMi || !findViewById<Switch>(R.id.cbHaritaYagmaAktif).isChecked || barbarKoordinatlari.isEmpty()) {
-            turDevamEdiyor = false
-            return
-        }
+        if (!aktifMi || !findViewById<Switch>(R.id.cbHaritaYagmaAktif).isChecked || barbarKoordinatlari.isEmpty()) { turDevamEdiyor = false; return }
         val koordinat = barbarKoordinatlari[barbarSiraIndex % barbarKoordinatlari.size]
         val parcalar = koordinat.split("|")
-        if (parcalar.size != 2) {
-            turDevamEdiyor = false
-            return
-        }
+        if (parcalar.size != 2) { turDevamEdiyor = false; return }
         val (birimKod, birimAd) = tumYagmaBirimleri[haritaYagmaBirimIndex]
         val adet = (findViewById<EditText>(R.id.etHaritaAskerAdet).text.toString().toIntOrNull() ?: 5).coerceIn(1, 5000)
 
         durumGuncelle("[Harita Yağma] $koordinat hazırlanıyor...")
-        if (!ekranaGit("place")) {
-            turDevamEdiyor = false
-            return
-        }
+        if (!ekranaGit("place")) { turDevamEdiyor = false; return }
 
         handler.postDelayed({
             if (!aktifMi) return@postDelayed
@@ -795,10 +655,8 @@ class MainActivity : Activity() {
                     if (!unitInp || !xInp || !yInp || !btn) return JSON.stringify({ok:false});
                     var link = document.querySelector('a.units-entry-all[data-unit="$birimKod"]');
                     var mevcut = link ? (parseInt((link.innerText.match(/(\d+)/)||[0,0])[1],10)||0) : 0;
-                    if (mevcut < $adet) return JSON.stringify({ok:false, neden:'asker_yok'});
-                    unitInp.value = '$adet';
-                    xInp.value = '${parcalar[0]}';
-                    yInp.value = '${parcalar[1]}';
+                    if (mevcut < $adet) return JSON.stringify({ok:false});
+                    unitInp.value = '$adet'; xInp.value = '${parcalar[0]}'; yInp.value = '${parcalar[1]}';
                     btn.scrollIntoView({block:'center'});
                     var r = btn.getBoundingClientRect();
                     return JSON.stringify({ok:true, x: r.left + r.width/2, y: r.top + r.height/2});
@@ -811,10 +669,7 @@ class MainActivity : Activity() {
                         webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                         handler.postDelayed({ haritaSaldiriOnayla(koordinat, "$adet $birimAd") }, 2200L)
                     }, 500L)
-                } else {
-                    durumGuncelle("[Harita Yağma] Yeterli $birimAd kalmadı")
-                    turDevamEdiyor = false
-                }
+                } else { durumGuncelle("[Harita Yağma] Yeterli $birimAd kalmadı"); turDevamEdiyor = false }
             }
         }, 2600L)
     }
@@ -842,7 +697,7 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- YAĞMA ASİSTANI ---
+    // --- 3. YAĞMA ASİSTANI ---
     private fun yagmaTurunuCalistir() {
         val koySayisi = (findViewById<EditText>(R.id.etYagmaSayi).text.toString().toIntOrNull() ?: 15).coerceIn(1, 100)
         val sinif = if (yagmaSablonu == "A") "farm_icon_a" else "farm_icon_b"
@@ -870,13 +725,11 @@ class MainActivity : Activity() {
                     webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
                     handler.postDelayed({ yagmaSiradakiKoyeBas(sinif, mevcut + 1, toplam) }, (1300L..1950L).random())
                 }, 400L)
-            } else {
-                turDevamEdiyor = false
-            }
+            } else turDevamEdiyor = false
         }
     }
 
-    // --- BİNA ---
+    // --- 4. BİNA ---
     private fun binaTurunuCalistir(tvBinaKuyrugu: TextView) {
         val gorev = binaKuyrugu.firstOrNull() ?: return
         val premium20Kullan = findViewById<Switch>(R.id.cbBinaPremium20).isChecked
@@ -906,9 +759,7 @@ class MainActivity : Activity() {
                 when (obj?.optString("durum")) {
                     "tamam" -> {
                         durumGuncelle("[Bina] ✅ ${gorev.ad} Sv.${gorev.hedefSeviye} tamam!", logEkle = true)
-                        binaKuyrugu.remove(gorev)
-                        kuyruguKaydet(tvBinaKuyrugu)
-                        turDevamEdiyor = false
+                        binaKuyrugu.remove(gorev); kuyruguKaydet(tvBinaKuyrugu); turDevamEdiyor = false
                     }
                     "bas" -> {
                         durumGuncelle("[Bina] 🔨 ${gorev.ad} yükseltiliyor", logEkle = true)
@@ -924,7 +775,7 @@ class MainActivity : Activity() {
         }, 3000L)
     }
 
-    // --- TEMİZLİK ---
+    // --- 5. TEMİZLİK (+%20 PP DESTEKLİ) ---
     private fun temizlikTurunuCalistir() {
         val secili = mutableListOf<Int>()
         if (findViewById<CheckBox>(R.id.cbTemizLv1).isChecked) secili.add(1)
@@ -942,16 +793,19 @@ class MainActivity : Activity() {
         if (!aktifMi || index >= secili.size) { turDevamEdiyor = false; return }
         val hedefLv = secili[index]
         val kalanJson = secili.subList(index, secili.size).joinToString(",")
+        val premiumKullan = findViewById<Switch>(R.id.cbTemizPremium).isChecked
+        val btnSecici = if (premiumKullan) "a.premium_send_button:not(.btn-disabled), a.btn-pp:not(.btn-disabled)" else "a.free_send_button:not(.btn-disabled)"
+
         val js = """
             (function() {
                 var agirliklar = {1:15, 2:6, 3:3, 4:2}, kalanlar = [$kalanJson], hedef = $hedefLv;
                 var kutular = Array.from(document.querySelectorAll('.scavenge-option'));
                 var hedefKutu = kutular[hedef - 1];
                 if (!hedefKutu) return JSON.stringify({ok:false});
-                var btn = hedefKutu.querySelector('a.free_send_button:not(.btn-disabled)');
+                var btn = hedefKutu.querySelector('$btnSecici');
                 if (!btn) return JSON.stringify({ok:false, neden:'mesgul'});
                 var toplamAgirlik = 0;
-                kalanlar.forEach(function(lv){ var k = kutular[lv-1]; if (k && k.querySelector('a.free_send_button:not(.btn-disabled)')) toplamAgirlik += (agirliklar[lv]||1); });
+                kalanlar.forEach(function(lv){ var k = kutular[lv-1]; if (k && k.querySelector('$btnSecici')) toplamAgirlik += (agirliklar[lv]||1); });
                 var pay = (agirliklar[hedef]||1) / (toplamAgirlik||1);
                 var toplam = 0;
                 ['spear','sword','axe','light','heavy'].forEach(function(u){
@@ -973,20 +827,40 @@ class MainActivity : Activity() {
         webView.evaluateJavascript(js) { sonuc ->
             val obj = parseJsJson(sonuc)
             if (obj != null && obj.optBoolean("ok")) {
-                durumGuncelle("[Temizlik] 🧹 Lv.$hedefLv (${obj.optInt("adet")} asker)", logEkle = true)
+                val etiket = if (premiumKullan) "(+%20 PP)" else ""
+                durumGuncelle("[Temizlik] 🧹 Lv.$hedefLv $etiket (${obj.optInt("adet")} asker)", logEkle = true)
                 handler.postDelayed({
                     webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
-                    handler.postDelayed({ temizlikSiradakiKoluGonder(secili, index + 1) }, 1800L)
+                    if (premiumKullan) handler.postDelayed({ temizlikOnaylaVeDevamEt(secili, index, 1) }, 900L)
+                    else handler.postDelayed({ temizlikSiradakiKoluGonder(secili, index + 1) }, 1800L)
                 }, 600L)
             } else if (obj?.optString("neden") == "mesgul") {
                 temizlikSiradakiKoluGonder(secili, index + 1)
-            } else {
-                turDevamEdiyor = false
-            }
+            } else turDevamEdiyor = false
         }
     }
 
-    // --- BORSA (STABİL ÇALIŞAN SÜRÜM) ---
+    private fun temizlikOnaylaVeDevamEt(secili: List<Int>, index: Int, deneme: Int) {
+        if (!aktifMi) { turDevamEdiyor = false; return }
+        val js = """
+            (function() {
+                var btn = document.querySelector('.confirmation-box .evt-confirm-btn, .popup_box_content .evt-confirm-btn, .btn-confirm-yes');
+                if (!btn || btn.offsetParent === null) return JSON.stringify({ok:false});
+                var r = btn.getBoundingClientRect();
+                return JSON.stringify({ok:true, x: r.left + r.width/2, y: r.top + r.height/2});
+            })();
+        """.trimIndent()
+        webView.evaluateJavascript(js) { sonuc ->
+            val obj = parseJsJson(sonuc)
+            if (obj != null && obj.optBoolean("ok")) {
+                webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
+                handler.postDelayed({ temizlikSiradakiKoluGonder(secili, index + 1) }, 1800L)
+            } else if (deneme < 3) handler.postDelayed({ temizlikOnaylaVeDevamEt(secili, index, deneme + 1) }, 600L)
+            else temizlikSiradakiKoluGonder(secili, index + 1)
+        }
+    }
+
+    // --- 6. BORSA (ONAY PENCERESİ + GERÇEK DOKUNMA DÜZELTMELİ) ---
     private fun borsaKontrolVeOnayEt() {
         val mevcutUrl = webView.url ?: return
         if (!mevcutUrl.contains("game.php")) return
@@ -1015,19 +889,62 @@ class MainActivity : Activity() {
 
         val js = """
             (function() {
+                function gorunurMu(el) {
+                    if (!el) return false;
+                    var st = window.getComputedStyle(el);
+                    if (st.display === 'none' || st.visibility === 'hidden' || parseFloat(st.opacity) === 0) return false;
+                    var r = el.getBoundingClientRect();
+                    return r.width > 5 && r.height > 5;
+                }
+
+                function acikOnayiBas() {
+                    var onayBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-confirm-btn, .confirmation-box .btn-confirm-yes, .popup_box_content .evt-confirm-btn, button.evt-confirm-btn, button.btn-confirm-yes')).find(gorunurMu);
+                    if (onayBtn) {
+                        if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                        var r = onayBtn.getBoundingClientRect();
+                        if (window.jQuery) window.jQuery(onayBtn).trigger('click');
+                        onayBtn.click();
+                        AndroidBot.onBorsaOnayDokun(true, r.left + r.width/2, r.top + r.height/2);
+                        return true;
+                    }
+                    var iptalBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-cancel-btn, .confirmation-box .btn-confirm-no, button.evt-cancel-btn')).find(gorunurMu);
+                    if (iptalBtn) {
+                        if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
+                        var r2 = iptalBtn.getBoundingClientRect();
+                        if (window.jQuery) window.jQuery(iptalBtn).trigger('click');
+                        iptalBtn.click();
+                        AndroidBot.onBorsaOnayDokun(false, r2.left + r2.width/2, r2.top + r2.height/2);
+                        return true;
+                    }
+                    return false;
+                }
+
+                if (acikOnayiBas()) return;
+
                 var mevcutHata = document.querySelector('.error_box, #error');
-                if (mevcutHata && mevcutHata.offsetParent !== null) {
+                if (gorunurMu(mevcutHata)) {
                     var hTxt = (mevcutHata.innerText || '').toLowerCase();
                     mevcutHata.remove();
                     if (hTxt.indexOf('yoğun') !== -1 || hTxt.indexOf('tekrar deneyin') !== -1 || hTxt.indexOf('many') !== -1) {
                         AndroidBot.onBorsaHizSiniri(); return;
                     }
                 }
+
+                var calcBtnKontrol = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
+                if (calcBtnKontrol) {
+                    var bt = (calcBtnKontrol.value || '').toLowerCase();
+                    if (calcBtnKontrol.disabled || calcBtnKontrol.classList.contains('btn-disabled') || bt.indexOf('bekleyin') !== -1) {
+                        AndroidBot.onBorsaBos('Oyun sayacı bekleniyor...');
+                        return;
+                    }
+                }
+
                 function ilkSayi(el) {
                     if (!el) return 0;
                     var m = (el.textContent || el.innerText || '').trim().match(/(\d[\d.]*)/);
                     return m ? (parseInt(m[1].replace(/\./g, ''), 10) || 0) : 0;
                 }
+
                 function tablodanOku() {
                     var res = {stock:{wood:0,stone:0,iron:0}, capacity:{wood:0,stone:0,iron:0}, rates:{wood:0,stone:0,iron:0}};
                     ['wood','stone','iron'].forEach(function(r){
@@ -1037,9 +954,9 @@ class MainActivity : Activity() {
                     });
                     return res;
                 }
+
                 function anindaGozlemciBaslat() {
                     if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
-                    function gorunurMu(el) { if (!el) return false; var r = el.getBoundingClientRect(); return el.offsetParent !== null && r.width > 5 && r.height > 5; }
                     function kontrol() {
                         var hata = document.querySelector('.error_box, #error');
                         if (gorunurMu(hata)) {
@@ -1049,29 +966,15 @@ class MainActivity : Activity() {
                             else AndroidBot.onBorsaSonuc(false);
                             return true;
                         }
-                        var onayKutusu = Array.from(document.querySelectorAll('#premium_exchange_confirm, .confirmation-box, .popup_box_content, .popup_box')).find(gorunurMu);
-                        if (onayKutusu) {
-                            var adaylar = Array.from(onayKutusu.querySelectorAll('button, input, a'));
-                            var onayBtn = adaylar.find(function(el){
-                                if (!gorunurMu(el)) return false;
-                                var t = (el.innerText || el.value || '').trim().toLowerCase();
-                                return el.classList.contains('evt-confirm-btn') || el.classList.contains('btn-confirm-yes') || t === 'onayla' || t === 'confirm';
-                            });
-                            if (onayBtn) { if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect(); onayBtn.click(); AndroidBot.onBorsaSonuc(true); return true; }
-                            var iptalBtn = adaylar.find(function(el){
-                                if (!gorunurMu(el)) return false;
-                                var t = (el.innerText || el.value || '').trim().toLowerCase();
-                                return el.classList.contains('evt-cancel-btn') || el.classList.contains('btn-confirm-no') || t.indexOf('iptal') !== -1;
-                            });
-                            if (iptalBtn) { if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect(); iptalBtn.click(); AndroidBot.onBorsaSonuc(false); return true; }
-                        }
-                        return false;
+                        return acikOnayiBas();
                     }
-                    if (!kontrol()) {
-                        window.__klanlarOnayObserver = new MutationObserver(function(){ kontrol(); });
-                        window.__klanlarOnayObserver.observe(document.body, {childList:true, subtree:true, attributes:true});
-                    }
+                    window.__klanlarOnayObserver = new MutationObserver(function(){ kontrol(); });
+                    window.__klanlarOnayObserver.observe(document.body, {childList:true, subtree:true, attributes:true});
+                    setTimeout(kontrol, 180);
+                    setTimeout(kontrol, 450);
+                    setTimeout(kontrol, 850);
                 }
+
                 function islemiCalistir(veri) {
                     var hedefler = [$kaynakJson], secilen = null;
                     for (var i = 0; i < hedefler.length; i++) {
@@ -1088,18 +991,28 @@ class MainActivity : Activity() {
                         AndroidBot.onBorsaBos('Stok: ' + veri.stock.wood + '/' + veri.stock.stone + '/' + veri.stock.iron + ' | Oran: ' + veri.rates.wood + '/' + veri.rates.stone + '/' + veri.rates.iron);
                         return;
                     }
-                    ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n){ var e = document.querySelector('input[name="'+n+'"]'); if (e) e.value = ''; });
+                    ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n){
+                        var e = document.querySelector('input[name="'+n+'"]');
+                        if (e) { e.value = ''; if (window.jQuery) window.jQuery(e).val('').trigger('change'); }
+                    });
                     var inp = document.querySelector('input[name="' + ('$mod' === 'sell' ? 'sell_' : 'buy_') + secilen.res + '"]');
                     var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
                     if (!inp || !calcBtn) { AndroidBot.onBorsaBos('Form yok'); return; }
-                    inp.value = secilen.adet;
+
+                    inp.focus();
+                    inp.value = String(secilen.adet);
+                    if (window.jQuery) window.jQuery(inp).val(String(secilen.adet)).trigger('input').trigger('keyup').trigger('change');
                     inp.dispatchEvent(new Event('input', {bubbles:true}));
                     inp.dispatchEvent(new Event('change', {bubbles:true}));
-                    calcBtn.disabled = false; calcBtn.classList.remove('btn-disabled');
+
                     anindaGozlemciBaslat();
                     AndroidBot.onBorsaTetiklendi(secilen.res, secilen.adet, secilen.kur);
-                    calcBtn.click();
+                    setTimeout(function() {
+                        if (window.jQuery) window.jQuery(calcBtn).trigger('click');
+                        calcBtn.click();
+                    }, 80);
                 }
+
                 if (typeof TribalWars !== 'undefined' && typeof TribalWars.get === 'function') {
                     TribalWars.get('market', { ajax: 'exchange_data' }, function(data) {
                         var t = tablodanOku();
@@ -1120,13 +1033,15 @@ class MainActivity : Activity() {
         val js = """
             (function() {
                 if (window.__klanlarOnayObserver) { window.__klanlarOnayObserver.disconnect(); window.__klanlarOnayObserver = null; }
-                ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n){ var e = document.querySelector('input[name="'+n+'"]'); if (e) e.value = ''; });
+                ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n){
+                    var e = document.querySelector('input[name="'+n+'"]');
+                    if (e) { e.value = ''; if (window.jQuery) window.jQuery(e).val('').trigger('change'); }
+                });
             })();
         """.trimIndent()
         webView.evaluateJavascript(js, null)
     }
 
-    // --- YARDIMCILAR ---
     private fun ekranaGit(screen: String, ekstraParam: String = ""): Boolean {
         val mevcutUrl = webView.url ?: return false
         if (!mevcutUrl.contains("game.php")) return false
@@ -1254,6 +1169,19 @@ class MainActivity : Activity() {
                 sonDeneneKaynak = res
                 val tr = when (res) { "wood" -> "Odun"; "stone" -> "Kil"; "iron" -> "Demir"; else -> res }
                 durumGuncelle("[Borsa] ⚡ $tr ($adet | Oran:$kur) çekiliyor", logEkle = true)
+            }
+        }
+        @JavascriptInterface fun onBorsaOnayDokun(onayMi: Boolean, x: Float, y: Float) {
+            handler.post {
+                if (!aktifMi) return@post
+                if (x >= 0f && y >= 0f) webViewGercekDokun(x, y)
+                if (onayMi) durumGuncelle("[Borsa] ✅ Onayla basıldı!", logEkle = true)
+                else {
+                    basarisizKaynak = sonDeneneKaynak
+                    basarisizKaynakZamani = System.currentTimeMillis()
+                    durumGuncelle("[Borsa] ⚠️ Kapıldı, iptal edildi")
+                }
+                handler.postDelayed({ borsaKutulariniTemizle(); borsaIslemde = false }, 220L)
             }
         }
         @JavascriptInterface fun onBorsaSonuc(basariliMi: Boolean) {
