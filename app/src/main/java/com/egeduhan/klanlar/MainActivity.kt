@@ -860,28 +860,40 @@ class MainActivity : Activity() {
         }
     }
 
-    // --- 6. BORSA (ONAY PENCERESİ + GERÇEK DOKUNMA DÜZELTMELİ) ---
+    // --- 6. BORSA (e79d7aa HATASIZ SÜRÜMÜ - BİREBİR) ---
     private fun borsaKontrolVeOnayEt() {
         val mevcutUrl = webView.url ?: return
-        if (!mevcutUrl.contains("game.php")) return
-        if (!mevcutUrl.contains("screen=market") || !mevcutUrl.contains("mode=exchange")) {
-            borsaIslemde = true
-            borsaIslemBaslangic = System.currentTimeMillis() + 1200L
-            if (!ekranaGit("market", "&mode=exchange")) borsaIslemde = false
+        if (!mevcutUrl.contains("game.php")) {
+            durumGuncelle("⚠️ Önce dünyaya giriş yap!")
             return
         }
 
+        if (!mevcutUrl.contains("screen=market") || !mevcutUrl.contains("mode=exchange")) {
+            borsaIslemde = true
+            borsaIslemBaslangic = System.currentTimeMillis() + 1200L
+            durumGuncelle("[Borsa] Premium Takası ekranına geçiliyor...")
+            if (!ekranaGit("market", "&mode=exchange")) {
+                borsaIslemde = false
+            }
+            return
+        }
+
+        val odunAktif = findViewById<CheckBox>(R.id.cbBorsaOdun).isChecked
+        val kilAktif = findViewById<CheckBox>(R.id.cbBorsaKil).isChecked
+        val demirAktif = findViewById<CheckBox>(R.id.cbBorsaDemir).isChecked
+
         val kaynaklar = mutableListOf<String>()
-        if (findViewById<CheckBox>(R.id.cbBorsaOdun).isChecked) kaynaklar.add("wood")
-        if (findViewById<CheckBox>(R.id.cbBorsaKil).isChecked) kaynaklar.add("stone")
-        if (findViewById<CheckBox>(R.id.cbBorsaDemir).isChecked) kaynaklar.add("iron")
+        if (odunAktif) kaynaklar.add("wood")
+        if (kilAktif) kaynaklar.add("stone")
+        if (demirAktif) kaynaklar.add("iron")
         if (kaynaklar.isEmpty()) return
 
         val maxMiktar = (findViewById<EditText>(R.id.etBorsaMiktar).text.toString().toIntOrNull() ?: 1000).coerceAtLeast(1)
         val minStok = (findViewById<EditText>(R.id.etBorsaMinStok).text.toString().toIntOrNull() ?: 15).coerceAtLeast(1)
         val kurLimit = (findViewById<EditText>(R.id.etBorsaKurLimit).text.toString().toIntOrNull() ?: 1).coerceAtLeast(1)
         val mod = if (borsaSatisModu) "sell" else "buy"
-        val atla = if (System.currentTimeMillis() - basarisizKaynakZamani < 2200L) basarisizKaynak else ""
+
+        val atlanacakKaynak = if (System.currentTimeMillis() - basarisizKaynakZamani < 2200L) basarisizKaynak else ""
 
         borsaIslemde = true
         borsaIslemBaslangic = System.currentTimeMillis()
@@ -897,8 +909,8 @@ class MainActivity : Activity() {
                     return r.width > 5 && r.height > 5;
                 }
 
-                function acikOnayiBas() {
-                    var onayBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-confirm-btn, .confirmation-box .btn-confirm-yes, .popup_box_content .evt-confirm-btn, button.evt-confirm-btn, button.btn-confirm-yes')).find(gorunurMu);
+                function acikPencereyiIsle() {
+                    var onayBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-confirm-btn, .confirmation-box .btn-confirm-yes, #confirmation-box .evt-confirm-btn, .popup_box_content .evt-confirm-btn, button.evt-confirm-btn, button.btn-confirm-yes')).find(gorunurMu);
                     if (onayBtn) {
                         if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
                         var r = onayBtn.getBoundingClientRect();
@@ -907,7 +919,7 @@ class MainActivity : Activity() {
                         AndroidBot.onBorsaOnayDokun(true, r.left + r.width/2, r.top + r.height/2);
                         return true;
                     }
-                    var iptalBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-cancel-btn, .confirmation-box .btn-confirm-no, button.evt-cancel-btn')).find(gorunurMu);
+                    var iptalBtn = Array.from(document.querySelectorAll('.confirmation-box .evt-cancel-btn, .confirmation-box .btn-confirm-no, #confirmation-box .evt-cancel-btn, button.evt-cancel-btn, button.btn-confirm-no')).find(gorunurMu);
                     if (iptalBtn) {
                         if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
                         var r2 = iptalBtn.getBoundingClientRect();
@@ -919,24 +931,18 @@ class MainActivity : Activity() {
                     return false;
                 }
 
-                if (acikOnayiBas()) return;
+                if (acikPencereyiIsle()) return;
 
                 var mevcutHata = document.querySelector('.error_box, #error');
                 if (gorunurMu(mevcutHata)) {
                     var hTxt = (mevcutHata.innerText || '').toLowerCase();
                     mevcutHata.remove();
                     if (hTxt.indexOf('yoğun') !== -1 || hTxt.indexOf('tekrar deneyin') !== -1 || hTxt.indexOf('many') !== -1) {
-                        AndroidBot.onBorsaHizSiniri(); return;
+                        AndroidBot.onBorsaHizSiniri();
+                    } else {
+                        AndroidBot.onBorsaSonuc(false);
                     }
-                }
-
-                var calcBtnKontrol = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
-                if (calcBtnKontrol) {
-                    var bt = (calcBtnKontrol.value || '').toLowerCase();
-                    if (calcBtnKontrol.disabled || calcBtnKontrol.classList.contains('btn-disabled') || bt.indexOf('bekleyin') !== -1) {
-                        AndroidBot.onBorsaBos('Oyun sayacı bekleniyor...');
-                        return;
-                    }
+                    return;
                 }
 
                 function ilkSayi(el) {
@@ -946,11 +952,30 @@ class MainActivity : Activity() {
                 }
 
                 function tablodanOku() {
-                    var res = {stock:{wood:0,stone:0,iron:0}, capacity:{wood:0,stone:0,iron:0}, rates:{wood:0,stone:0,iron:0}};
-                    ['wood','stone','iron'].forEach(function(r){
+                    var res = {
+                        stock: {wood: 0, stone: 0, iron: 0},
+                        capacity: {wood: 0, stone: 0, iron: 0},
+                        rates: {wood: 0, stone: 0, iron: 0}
+                    };
+                    var sirasi = ['wood', 'stone', 'iron'];
+                    sirasi.forEach(function(r) {
                         res.stock[r] = ilkSayi(document.getElementById('premium_exchange_stock_' + r));
                         res.capacity[r] = ilkSayi(document.getElementById('premium_exchange_capacity_' + r));
                         res.rates[r] = ilkSayi(document.getElementById('premium_exchange_rate_' + r));
+                    });
+
+                    Array.from(document.querySelectorAll('#premium_exchange_form tr, table.vis tr')).forEach(function(tr) {
+                        var hucreler = tr.querySelectorAll('td, th');
+                        if (hucreler.length < 4) return;
+                        var baslik = (hucreler[0].innerText || '').trim().toLowerCase();
+                        for (var i = 0; i < 3; i++) {
+                            var val = ilkSayi(hucreler[i + 1]);
+                            if (val > 0) {
+                                if (baslik.indexOf('stok') !== -1 || baslik.indexOf('stock') !== -1) res.stock[sirasi[i]] = val;
+                                else if (baslik.indexOf('kapasite') !== -1 || baslik.indexOf('capacity') !== -1) res.capacity[sirasi[i]] = val;
+                                else if (baslik.indexOf('oran') !== -1 || baslik.indexOf('kur') !== -1 || baslik.indexOf('rate') !== -1) res.rates[sirasi[i]] = val;
+                            }
+                        }
                     });
                     return res;
                 }
@@ -962,80 +987,154 @@ class MainActivity : Activity() {
                         if (gorunurMu(hata)) {
                             if (window.__klanlarOnayObserver) window.__klanlarOnayObserver.disconnect();
                             var msg = (hata.innerText || '').toLowerCase();
-                            if (msg.indexOf('yoğun') !== -1 || msg.indexOf('tekrar deneyin') !== -1) AndroidBot.onBorsaHizSiniri();
-                            else AndroidBot.onBorsaSonuc(false);
+                            if (msg.indexOf('yoğun') !== -1 || msg.indexOf('tekrar deneyin') !== -1) {
+                                AndroidBot.onBorsaHizSiniri();
+                            } else {
+                                AndroidBot.onBorsaSonuc(false);
+                            }
                             return true;
                         }
-                        return acikOnayiBas();
+                        return acikPencereyiIsle();
                     }
-                    window.__klanlarOnayObserver = new MutationObserver(function(){ kontrol(); });
-                    window.__klanlarOnayObserver.observe(document.body, {childList:true, subtree:true, attributes:true});
-                    setTimeout(kontrol, 180);
-                    setTimeout(kontrol, 450);
-                    setTimeout(kontrol, 850);
+                    window.__klanlarOnayObserver = new MutationObserver(function() { kontrol(); });
+                    window.__klanlarOnayObserver.observe(document.body, {childList: true, subtree: true, attributes: true});
+                    setTimeout(kontrol, 150);
+                    setTimeout(kontrol, 350);
+                    setTimeout(kontrol, 700);
                 }
 
                 function islemiCalistir(veri) {
-                    var hedefler = [$kaynakJson], secilen = null;
+                    var hedefler = [$kaynakJson];
+                    var atla = '$atlanacakKaynak';
+                    var mod = '$mod';
+                    var maxMiktar = $maxMiktar;
+                    var minStok = $minStok;
+                    var limit = $kurLimit;
+
+                    var secilen = null;
                     for (var i = 0; i < hedefler.length; i++) {
-                        var res = hedefler[i]; if (res === '$atla') continue;
-                        var stok = veri.stock[res] || 0, kap = veri.capacity[res] || 0, kur = veri.rates[res] || 0;
-                        if ('$mod' === 'sell') {
-                            var bos = kap - stok;
-                            if (bos >= $minStok && (kur <= $kurLimit || kur === 0)) { secilen = {res:res, adet:Math.min($maxMiktar, bos), kur:kur}; break; }
+                        var res = hedefler[i];
+                        if (res === atla) continue;
+
+                        var stok = veri.stock[res] || 0;
+                        var kap = veri.capacity[res] || 0;
+                        var kur = veri.rates[res] || 0;
+
+                        if (mod === 'sell') {
+                            var bosYer = kap - stok;
+                            if (bosYer >= minStok && (kur <= limit || kur === 0)) {
+                                secilen = {res: res, adet: Math.min(maxMiktar, bosYer), kur: kur};
+                                break;
+                            }
                         } else {
-                            if (stok >= $minStok && (kur >= $kurLimit || $kurLimit <= 1)) { secilen = {res:res, adet:Math.min($maxMiktar, stok), kur:kur}; break; }
+                            if (stok >= minStok && (kur >= limit || limit <= 1)) {
+                                secilen = {res: res, adet: Math.min(maxMiktar, stok), kur: kur};
+                                break;
+                            }
                         }
                     }
+
                     if (!secilen) {
-                        AndroidBot.onBorsaBos('Stok: ' + veri.stock.wood + '/' + veri.stock.stone + '/' + veri.stock.iron + ' | Oran: ' + veri.rates.wood + '/' + veri.rates.stone + '/' + veri.rates.iron);
+                        var ozet = 'Stok: ' + veri.stock.wood + '/' + veri.stock.stone + '/' + veri.stock.iron + ' | Oran: ' + veri.rates.wood + '/' + veri.rates.stone + '/' + veri.rates.iron;
+                        AndroidBot.onBorsaBos(ozet);
                         return;
                     }
-                    ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n){
-                        var e = document.querySelector('input[name="'+n+'"]');
-                        if (e) { e.value = ''; if (window.jQuery) window.jQuery(e).val('').trigger('change'); }
-                    });
-                    var inp = document.querySelector('input[name="' + ('$mod' === 'sell' ? 'sell_' : 'buy_') + secilen.res + '"]');
+
                     var calcBtn = document.querySelector('input.btn-premium-exchange-buy, #premium_exchange_form input[type="submit"]');
-                    if (!inp || !calcBtn) { AndroidBot.onBorsaBos('Form yok'); return; }
+                    if (!calcBtn) {
+                        AndroidBot.onBorsaBos('Form bulunamadı');
+                        return;
+                    }
+
+                    var btnText = (calcBtn.value || '').toLowerCase();
+                    if (calcBtn.disabled || calcBtn.classList.contains('btn-disabled') || btnText.indexOf('bekleyin') !== -1) {
+                        AndroidBot.onBorsaBos('Oyun bekleme sayacı: ' + (calcBtn.value || 'bekleniyor'));
+                        return;
+                    }
+
+                    ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n) {
+                        var el = document.querySelector('input[name="' + n + '"]');
+                        if (el) {
+                            el.value = '';
+                            if (window.jQuery) window.jQuery(el).val('').trigger('input').trigger('change');
+                        }
+                    });
+
+                    var inpName = (mod === 'sell' ? 'sell_' : 'buy_') + secilen.res;
+                    var inp = document.querySelector('input[name="' + inpName + '"]');
+                    if (!inp) {
+                        AndroidBot.onBorsaBos('Kutu bulunamadı');
+                        return;
+                    }
 
                     inp.focus();
                     inp.value = String(secilen.adet);
-                    if (window.jQuery) window.jQuery(inp).val(String(secilen.adet)).trigger('input').trigger('keyup').trigger('change');
+                    if (window.jQuery) {
+                        window.jQuery(inp).val(String(secilen.adet)).trigger('input').trigger('keyup').trigger('change');
+                    }
                     inp.dispatchEvent(new Event('input', {bubbles:true}));
+                    inp.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true}));
                     inp.dispatchEvent(new Event('change', {bubbles:true}));
 
                     anindaGozlemciBaslat();
                     AndroidBot.onBorsaTetiklendi(secilen.res, secilen.adet, secilen.kur);
+
                     setTimeout(function() {
                         if (window.jQuery) window.jQuery(calcBtn).trigger('click');
                         calcBtn.click();
-                    }, 80);
+                    }, 60);
                 }
 
                 if (typeof TribalWars !== 'undefined' && typeof TribalWars.get === 'function') {
                     TribalWars.get('market', { ajax: 'exchange_data' }, function(data) {
-                        var t = tablodanOku();
-                        var b = {
-                            stock: { wood: (data&&data.stock&&data.stock.wood!==undefined)?parseInt(data.stock.wood,10):t.stock.wood, stone: (data&&data.stock&&data.stock.stone!==undefined)?parseInt(data.stock.stone,10):t.stock.stone, iron: (data&&data.stock&&data.stock.iron!==undefined)?parseInt(data.stock.iron,10):t.stock.iron },
-                            capacity: { wood: (data&&data.capacity&&data.capacity.wood!==undefined)?parseInt(data.capacity.wood,10):t.capacity.wood, stone: (data&&data.capacity&&data.capacity.stone!==undefined)?parseInt(data.capacity.stone,10):t.capacity.stone, iron: (data&&data.capacity&&data.capacity.iron!==undefined)?parseInt(data.capacity.iron,10):t.capacity.iron },
-                            rates: { wood: (data&&data.rates&&data.rates.wood!==undefined)?Math.floor(parseFloat(data.rates.wood)):t.rates.wood, stone: (data&&data.rates&&data.rates.stone!==undefined)?Math.floor(parseFloat(data.rates.stone)):t.rates.stone, iron: (data&&data.rates&&data.rates.iron!==undefined)?Math.floor(parseFloat(data.rates.iron)):t.rates.iron }
+                        var tablo = tablodanOku();
+                        var birlesik = {
+                            stock: {
+                                wood: (data && data.stock && data.stock.wood !== undefined) ? parseInt(data.stock.wood, 10) : tablo.stock.wood,
+                                stone: (data && data.stock && data.stock.stone !== undefined) ? parseInt(data.stock.stone, 10) : tablo.stock.stone,
+                                iron: (data && data.stock && data.stock.iron !== undefined) ? parseInt(data.stock.iron, 10) : tablo.stock.iron
+                            },
+                            capacity: {
+                                wood: (data && data.capacity && data.capacity.wood !== undefined) ? parseInt(data.capacity.wood, 10) : tablo.capacity.wood,
+                                stone: (data && data.capacity && data.capacity.stone !== undefined) ? parseInt(data.capacity.stone, 10) : tablo.capacity.stone,
+                                iron: (data && data.capacity && data.capacity.iron !== undefined) ? parseInt(data.capacity.iron, 10) : tablo.capacity.iron
+                            },
+                            rates: {
+                                wood: (data && data.rates && data.rates.wood !== undefined) ? Math.floor(parseFloat(data.rates.wood)) : tablo.rates.wood,
+                                stone: (data && data.rates && data.rates.stone !== undefined) ? Math.floor(parseFloat(data.rates.stone)) : tablo.rates.stone,
+                                iron: (data && data.rates && data.rates.iron !== undefined) ? Math.floor(parseFloat(data.rates.iron)) : tablo.rates.iron
+                            }
                         };
-                        islemiCalistir(b);
-                    }, function(){ islemiCalistir(tablodanOku()); });
-                } else { islemiCalistir(tablodanOku()); }
+                        ['wood', 'stone', 'iron'].forEach(function(r) {
+                            var sEl = document.getElementById('premium_exchange_stock_' + r);
+                            if (sEl) sEl.innerText = birlesik.stock[r];
+                        });
+                        islemiCalistir(birlesik);
+                    }, function() {
+                        islemiCalistir(tablodanOku());
+                    });
+                } else {
+                    islemiCalistir(tablodanOku());
+                }
             })();
         """.trimIndent()
+
         webView.evaluateJavascript(js, null)
     }
 
     private fun borsaKutulariniTemizle() {
         val js = """
             (function() {
-                if (window.__klanlarOnayObserver) { window.__klanlarOnayObserver.disconnect(); window.__klanlarOnayObserver = null; }
-                ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n){
-                    var e = document.querySelector('input[name="'+n+'"]');
-                    if (e) { e.value = ''; if (window.jQuery) window.jQuery(e).val('').trigger('change'); }
+                if (window.__klanlarOnayObserver) {
+                    window.__klanlarOnayObserver.disconnect();
+                    window.__klanlarOnayObserver = null;
+                }
+                ['buy_wood','buy_stone','buy_iron','sell_wood','sell_stone','sell_iron'].forEach(function(n) {
+                    var el = document.querySelector('input[name="' + n + '"]');
+                    if (el) {
+                        el.value = '';
+                        if (window.jQuery) window.jQuery(el).val('').trigger('change');
+                    }
                 });
             })();
         """.trimIndent()
@@ -1155,44 +1254,52 @@ class MainActivity : Activity() {
     }
 
     inner class BotJsBridge {
-        @JavascriptInterface fun onBorsaBos(stokBilgisi: String) { handler.post { durumGuncelle("[Borsa] $stokBilgisi"); borsaIslemde = false } }
+        @JavascriptInterface fun onBorsaBos(stokBilgisi: String) {
+            handler.post {
+                durumGuncelle("[Borsa] $stokBilgisi")
+                borsaIslemde = false
+            }
+        }
         @JavascriptInterface fun onBorsaHizSiniri() {
             handler.post {
                 borsaHizSiniriBitisZamani = System.currentTimeMillis() + 15_000L
-                durumGuncelle("[Borsa] 🛑 Yoğunluk molası (15s)", logEkle = true)
-                borsaKutulariniTemizle(); borsaIslemde = false
+                durumGuncelle("[Borsa] 🛑 Sunucu yoğunluk uyarısı! 15 sn mola verildi...", logEkle = true)
+                borsaKutulariniTemizle()
+                borsaIslemde = false
             }
         }
         @JavascriptInterface fun onBorsaTetiklendi(res: String, adet: Int, kur: Int) {
             handler.post {
                 if (!aktifMi) { borsaIslemde = false; return@post }
                 sonDeneneKaynak = res
-                val tr = when (res) { "wood" -> "Odun"; "stone" -> "Kil"; "iron" -> "Demir"; else -> res }
-                durumGuncelle("[Borsa] ⚡ $tr ($adet | Oran:$kur) çekiliyor", logEkle = true)
+                val trAd = when (res) { "wood" -> "Odun"; "stone" -> "Kil"; "iron" -> "Demir"; else -> res }
+                durumGuncelle("[Borsa] ⚡ $trAd ($adet | Oran: $kur) çekiliyor!", logEkle = true)
             }
         }
         @JavascriptInterface fun onBorsaOnayDokun(onayMi: Boolean, x: Float, y: Float) {
             handler.post {
                 if (!aktifMi) return@post
                 if (x >= 0f && y >= 0f) webViewGercekDokun(x, y)
-                if (onayMi) durumGuncelle("[Borsa] ✅ Onayla basıldı!", logEkle = true)
-                else {
+                if (onayMi) {
+                    durumGuncelle("[Borsa] ✅ Onayla basıldı!", logEkle = true)
+                } else {
                     basarisizKaynak = sonDeneneKaynak
                     basarisizKaynakZamani = System.currentTimeMillis()
-                    durumGuncelle("[Borsa] ⚠️ Kapıldı, iptal edildi")
+                    durumGuncelle("[Borsa] ⚠️ Kapıldı, iptal edildi...")
                 }
                 handler.postDelayed({ borsaKutulariniTemizle(); borsaIslemde = false }, 220L)
             }
         }
         @JavascriptInterface fun onBorsaSonuc(basariliMi: Boolean) {
             handler.post {
-                if (basariliMi) durumGuncelle("[Borsa] ✅ Çekildi!", logEkle = true)
-                else {
+                if (basariliMi) {
+                    durumGuncelle("[Borsa] ✅ Anında çekildi!", logEkle = true)
+                } else {
                     basarisizKaynak = sonDeneneKaynak
                     basarisizKaynakZamani = System.currentTimeMillis()
-                    durumGuncelle("[Borsa] ⚠️ Kapıldı, sıradaki madene geçiliyor")
+                    durumGuncelle("[Borsa] ⚠️ Kapıldı, sıradaki madene geçiliyor...")
                 }
-                handler.postDelayed({ borsaKutulariniTemizle(); borsaIslemde = false }, 150L)
+                handler.postDelayed({ borsaKutulariniTemizle(); borsaIslemde = false }, 180L)
             }
         }
     }
