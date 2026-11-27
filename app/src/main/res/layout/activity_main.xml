@@ -279,7 +279,7 @@
                     <TextView android:id="@+id/tvBinaKuyrugu" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="Sıra boş" android:textColor="#A9DFBF" android:textSize="11sp" />
                 </LinearLayout>
 
-                <!-- 5. TEMİZLİK SEKME -->
+                <!-- 5. TEMİZLİK SEKME (+%20 PP EKLİ) -->
                 <LinearLayout
                     android:id="@+id/layoutTemizlik"
                     android:layout_width="match_parent"
@@ -292,6 +292,15 @@
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dk:" android:textColor="#CCC" android:textSize="11sp" />
                         <EditText android:id="@+id/etTemizlikDakika" android:layout_width="42dp" android:layout_height="30dp" android:layout_marginStart="4dp" android:gravity="center" android:inputType="number" android:padding="2dp" android:text="20" android:textColor="#FFF" android:textSize="11sp" />
                     </LinearLayout>
+
+                    <Switch
+                        android:id="@+id/cbTemizPremium"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="+%20 PP ile Gönder (Fazla Taşıma)"
+                        android:textColor="#F5C563"
+                        android:textSize="11sp" />
 
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
                         <CheckBox android:id="@+id/cbTemizLv1" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:checked="true" android:text="Lv 1" android:textColor="#FFF" android:textSize="11sp" />
