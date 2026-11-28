@@ -775,73 +775,135 @@ class MainActivity : Activity() {
         }, 3000L)
     }
 
-    // --- 5. TEMİZLİK (+%20 PP DESTEKLİ) ---
+    // --- 5. TEMİZLİK (e79d7aa STABİL MOTOR + %20 PP DESTEKLİ) ---
     private fun temizlikTurunuCalistir() {
-        val secili = mutableListOf<Int>()
-        if (findViewById<CheckBox>(R.id.cbTemizLv1).isChecked) secili.add(1)
-        if (findViewById<CheckBox>(R.id.cbTemizLv2).isChecked) secili.add(2)
-        if (findViewById<CheckBox>(R.id.cbTemizLv3).isChecked) secili.add(3)
-        if (findViewById<CheckBox>(R.id.cbTemizLv4).isChecked) secili.add(4)
-        if (secili.isEmpty()) return
+        val seciliSeviyeler = mutableListOf<Int>()
+        if (findViewById<CheckBox>(R.id.cbTemizLv1).isChecked) seciliSeviyeler.add(1)
+        if (findViewById<CheckBox>(R.id.cbTemizLv2).isChecked) seciliSeviyeler.add(2)
+        if (findViewById<CheckBox>(R.id.cbTemizLv3).isChecked) seciliSeviyeler.add(3)
+        if (findViewById<CheckBox>(R.id.cbTemizLv4).isChecked) seciliSeviyeler.add(4)
+
+        if (seciliSeviyeler.isEmpty()) {
+            durumGuncelle("[Temizlik] En az 1 temizlik seviyesi tikle!")
+            return
+        }
 
         turDevamEdiyor = true
-        if (!ekranaGit("place", "&mode=scavenge")) { turDevamEdiyor = false; return }
-        handler.postDelayed({ if (aktifMi) temizlikSiradakiKoluGonder(secili, 0) }, 3000L)
+        durumGuncelle("[Temizlik] İçtima Meydanı açılıyor...")
+        if (!ekranaGit("place", "&mode=scavenge")) {
+            turDevamEdiyor = false
+            return
+        }
+
+        handler.postDelayed({
+            if (!aktifMi) return@postDelayed
+            temizlikSiradakiKoluGonder(seciliSeviyeler, 0)
+        }, 3000L)
     }
 
-    private fun temizlikSiradakiKoluGonder(secili: List<Int>, index: Int) {
-        if (!aktifMi || index >= secili.size) { turDevamEdiyor = false; return }
-        val hedefLv = secili[index]
-        val kalanJson = secili.subList(index, secili.size).joinToString(",")
+    private fun temizlikSiradakiKoluGonder(seciliSeviyeler: List<Int>, index: Int) {
+        if (!aktifMi || index >= seciliSeviyeler.size) {
+            turDevamEdiyor = false
+            return
+        }
+
+        val hedefLv = seciliSeviyeler[index]
+        val kalanSeviyelerJson = seciliSeviyeler.subList(index, seciliSeviyeler.size).joinToString(",")
         val premiumKullan = findViewById<Switch>(R.id.cbTemizPremium).isChecked
         val btnSecici = if (premiumKullan) "a.premium_send_button:not(.btn-disabled), a.btn-pp:not(.btn-disabled)" else "a.free_send_button:not(.btn-disabled)"
 
         val js = """
             (function() {
-                var agirliklar = {1:15, 2:6, 3:3, 4:2}, kalanlar = [$kalanJson], hedef = $hedefLv;
+                var agirliklar = {1: 15, 2: 6, 3: 3, 4: 2};
+                var kalanlar = [$kalanSeviyelerJson];
+                var hedef = $hedefLv;
+
                 var kutular = Array.from(document.querySelectorAll('.scavenge-option'));
                 var hedefKutu = kutular[hedef - 1];
-                if (!hedefKutu) return JSON.stringify({ok:false});
+                if (!hedefKutu) return JSON.stringify({ok:false, neden:'kutu_yok'});
+
                 var btn = hedefKutu.querySelector('$btnSecici');
                 if (!btn) return JSON.stringify({ok:false, neden:'mesgul'});
+
                 var toplamAgirlik = 0;
-                kalanlar.forEach(function(lv){ var k = kutular[lv-1]; if (k && k.querySelector('$btnSecici')) toplamAgirlik += (agirliklar[lv]||1); });
-                var pay = (agirliklar[hedef]||1) / (toplamAgirlik||1);
-                var toplam = 0;
-                ['spear','sword','axe','light','heavy'].forEach(function(u){
-                    var inp = document.querySelector('input.unitsInput[name="'+u+'"]');
-                    var link = document.querySelector('a.units-entry-all[data-unit="'+u+'"]');
-                    var mevcut = link ? (parseInt((link.innerText.match(/(\d+)/)||[0,0])[1],10)||0) : 0;
-                    if (inp && mevcut > 0) {
-                        var adet = Math.floor(mevcut * pay);
-                        if (adet < 1 && kalanlar.length === 1) adet = mevcut;
-                        if (adet > 0) { inp.value = adet; inp.dispatchEvent(new Event('input',{bubbles:true})); toplam += adet; }
+                kalanlar.forEach(function(lv) {
+                    var k = kutular[lv - 1];
+                    if (k && k.querySelector('$btnSecici')) {
+                        toplamAgirlik += (agirliklar[lv] || 1);
                     }
                 });
-                if (toplam < 10) return JSON.stringify({ok:false});
+                if (toplamAgirlik <= 0) toplamAgirlik = agirliklar[hedef] || 1;
+                var payOrani = (agirliklar[hedef] || 1) / toplamAgirlik;
+
+                var birimler = ['spear', 'sword', 'axe', 'light', 'heavy'];
+                var toplamGonderilen = 0;
+
+                birimler.forEach(function(u) {
+                    var inp = document.querySelector('input.unitsInput[name="' + u + '"]');
+                    if (!inp) return;
+                    var link = document.querySelector('a.units-entry-all[data-unit="' + u + '"]');
+                    var mevcut = 0;
+                    if (link) {
+                        var m = (link.innerText || '').match(/(\d+)/);
+                        if (m) mevcut = parseInt(m[1], 10);
+                    }
+                    if (mevcut > 0) {
+                        var adet = Math.floor(mevcut * payOrani);
+                        if (adet < 1 && mevcut >= 1 && kalanlar.length === 1) adet = mevcut;
+                        if (adet > 0) {
+                            inp.focus();
+                            inp.value = String(adet);
+                            if (window.jQuery) {
+                                window.jQuery(inp).val(String(adet)).trigger('input').trigger('keyup').trigger('change');
+                            }
+                            inp.dispatchEvent(new Event('input', {bubbles:true}));
+                            inp.dispatchEvent(new KeyboardEvent('keyup', {bubbles:true}));
+                            inp.dispatchEvent(new Event('change', {bubbles:true}));
+                            toplamGonderilen += adet;
+                        }
+                    }
+                });
+
+                if (toplamGonderilen < 10) return JSON.stringify({ok:false, neden:'asker_az'});
+
                 btn.scrollIntoView({block:'center'});
                 var r = btn.getBoundingClientRect();
-                return JSON.stringify({ok:true, adet:toplam, x:r.left+r.width/2, y:r.top+r.height/2});
+                return JSON.stringify({ok:true, adet:toplamGonderilen, x: r.left + r.width/2, y: r.top + r.height/2});
             })();
         """.trimIndent()
+
         webView.evaluateJavascript(js) { sonuc ->
             val obj = parseJsJson(sonuc)
             if (obj != null && obj.optBoolean("ok")) {
+                val adet = obj.optInt("adet")
                 val etiket = if (premiumKullan) "(+%20 PP)" else ""
-                durumGuncelle("[Temizlik] 🧹 Lv.$hedefLv $etiket (${obj.optInt("adet")} asker)", logEkle = true)
+                durumGuncelle("[Temizlik] 🧹 $hedefLv. Seviye $etiket ($adet asker) gönderiliyor...", logEkle = true)
                 handler.postDelayed({
                     webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
-                    if (premiumKullan) handler.postDelayed({ temizlikOnaylaVeDevamEt(secili, index, 1) }, 900L)
-                    else handler.postDelayed({ temizlikSiradakiKoluGonder(secili, index + 1) }, 1800L)
+                    if (premiumKullan) {
+                        handler.postDelayed({ temizlikOnaylaVeDevamEt(seciliSeviyeler, index, 1) }, 900L)
+                    } else {
+                        handler.postDelayed({ temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1) }, 1800L)
+                    }
                 }, 600L)
-            } else if (obj?.optString("neden") == "mesgul") {
-                temizlikSiradakiKoluGonder(secili, index + 1)
-            } else turDevamEdiyor = false
+            } else {
+                val neden = obj?.optString("neden") ?: ""
+                if (neden == "mesgul") {
+                    durumGuncelle("[Temizlik] $hedefLv. Seviye zaten yolda, sıradakine geçiliyor...")
+                    temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1)
+                } else {
+                    durumGuncelle("[Temizlik] Uygun/yeterli boşta asker yok")
+                    turDevamEdiyor = false
+                }
+            }
         }
     }
 
-    private fun temizlikOnaylaVeDevamEt(secili: List<Int>, index: Int, deneme: Int) {
-        if (!aktifMi) { turDevamEdiyor = false; return }
+    private fun temizlikOnaylaVeDevamEt(seciliSeviyeler: List<Int>, index: Int, deneme: Int) {
+        if (!aktifMi) {
+            turDevamEdiyor = false
+            return
+        }
         val js = """
             (function() {
                 var btn = document.querySelector('.confirmation-box .evt-confirm-btn, .popup_box_content .evt-confirm-btn, .btn-confirm-yes');
@@ -854,13 +916,16 @@ class MainActivity : Activity() {
             val obj = parseJsJson(sonuc)
             if (obj != null && obj.optBoolean("ok")) {
                 webViewGercekDokun(obj.getDouble("x").toFloat(), obj.getDouble("y").toFloat())
-                handler.postDelayed({ temizlikSiradakiKoluGonder(secili, index + 1) }, 1800L)
-            } else if (deneme < 3) handler.postDelayed({ temizlikOnaylaVeDevamEt(secili, index, deneme + 1) }, 600L)
-            else temizlikSiradakiKoluGonder(secili, index + 1)
+                handler.postDelayed({ temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1) }, 1800L)
+            } else if (deneme < 3) {
+                handler.postDelayed({ temizlikOnaylaVeDevamEt(seciliSeviyeler, index, deneme + 1) }, 600L)
+            } else {
+                temizlikSiradakiKoluGonder(seciliSeviyeler, index + 1)
+            }
         }
     }
 
-    // --- 6. BORSA (e79d7aa HATASIZ SÜRÜMÜ - BİREBİR) ---
+    // --- 6. BORSA (e79d7aa HATASIZ SÜRÜMÜ - DOKUNULMADI) ---
     private fun borsaKontrolVeOnayEt() {
         val mevcutUrl = webView.url ?: return
         if (!mevcutUrl.contains("game.php")) {
